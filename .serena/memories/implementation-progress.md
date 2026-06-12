@@ -5,39 +5,40 @@ See `mem:implementation-setup` for layout, build/test commands (xcode-tools), te
 ## Test restructure (June 2026) — DONE
 Integration tests moved OUT of the SwiftPM package INTO the CLI Xcode project:
 - `ValistreamIntegrationTests` testTarget removed from `Package.swift` (package = `ValistreamCore` library + `ValistreamCoreTests` ONLY now — 1 test target, not 2).
-- Integration sources + test stubs moved `Package/Tests/ValistreamIntegrationTests/` -> `Valistream/Valistream/ValistreamIntegrationTests/` (incl. `Support/ScriptedStreamFetcher.swift`, `Support/ManualClock.swift`); now a unit-test-bundle target in `Valistream.xcodeproj`.
-- Added `Valistream/TestPlans/`: `ValistreamCore.xctestplan` (unit only; package scheme) + `Valistream.xctestplan` (unit + integration; CLI scheme). See `mem:implementation-setup`.
-- `swift test` in the package now runs unit/conformance only; integration runs via the Xcode `Valistream` scheme.
-- Supporting docs synced: CLAUDE.md, plan.md (structure tree + Testing line), quickstart.md, tasks.md (Path Conventions + new "Test restructure" note).
+- Integration sources + test stubs in `Valistream/Valistream/ValistreamIntegrationTests/` (incl. `Support/ScriptedStreamFetcher.swift`, `Support/ManualClock.swift`); unit-test-bundle target in `Valistream.xcodeproj`.
+- Test plans: `ValistreamCore.xctestplan` (unit; package scheme) + `Valistream.xctestplan` (unit + integration; CLI scheme). `swift test` in package runs unit/conformance only; integration runs via Xcode `Valistream` scheme (xcode-tools RunSomeTests/RunAllTests, tab windowtab1).
 
 ## CLI restructure (June 2026) — DONE
-CLI split out of the SwiftPM package into the Xcode project:
-- `valistream` executable target + `.executable` product + `swift-argument-parser` dependency removed from `Package.swift`.
-- CLI sources moved `Package/Sources/valistream/` -> `Valistream/Valistream/Valistream/` (sync group); placeholder `main.swift` deleted (`@main` conflict).
-- `Valistream.xcodeproj` tool target links `ValistreamCore` (local pkg) + `ArgumentParser` (remote pkg); SWIFT_VERSION 5.0->6.0.
-- BuildProject green; CLI runs (`--version` 0.1.0, `--help`, bad URL -> exit 2).
+CLI split into Xcode project tool target `Valistream` (sources `Valistream/Valistream/Valistream/`), links `ValistreamCore` (local) + `ArgumentParser` (remote). SWIFT_VERSION 6.0.
 
 ## Done (features)
 - **Phase 1 (T001-T003)**: package skeleton, build green.
-- **Phase 2 Foundational (T004-T015)**: tokenizer+AttributeList, playlist model+builder, Finding (Codable, matches session-report.schema.json), StreamFetching/FetchResult/ArtifactRecord, URLSessionStreamFetcher (OSAllocatedUnfairLock delegate), ScriptedStreamFetcher + ManualClock (test support), SessionState+SessionLifecycle, ValidationSession actor, RuleEngine.
-- **Phase 3 US1 MVP (T016-T028)**: RFC8216 master rules, RFC8216 media rules, AppleAuthoringRules, StreamClassifier (vod/event/live + LL-HLS/encryption info), PlaylistLoader (delivery findings), ValidationSession.run() one-shot flow, CLI (ValistreamCommand + StatusRenderer, exit codes 0/1/2/3).
-- **66 tests green** (last confirmed before restructure).
+- **Phase 2 Foundational (T004-T015)**: tokenizer+AttributeList, playlist model+builder, Finding, StreamFetching/FetchResult/ArtifactRecord, URLSessionStreamFetcher, ScriptedStreamFetcher + ManualClock, SessionState+SessionLifecycle, ValidationSession actor, RuleEngine.
+- **Phase 3 US1 MVP (T016-T028)**: RFC8216 master+media rules, AppleAuthoringRules, StreamClassifier, PlaylistLoader, ValidationSession.run() one-shot, CLI (ValistreamCommand + StatusRenderer, exit 0/1/2/3).
+- **Phase 4 US2 live monitoring (T029-T040) — DONE (June 2026)**:
+  - Pure components in `Sources/ValistreamCore/Monitoring/`: `RefreshScheduler` (RFC 8216 §6.3.4: initialDelay=TD, nextDelay changed=TD / unchanged=TD/2), `ContinuityChecker` (media-seq regression, head-removal, segment-stability mutation, discontinuity-inserted INFO, discontinuity-seq regression), `StalenessDetector` (>1.5×TD warning, >3×TD error, strict `>`), `Duration+Seconds.swift` (internal `.seconds` Double), `MonitorState` enum.
+  - `Session/PlaylistSelection.swift`: `PlaylistSelection.Candidate` + `resolve(_:patterns:)` (nil/empty patterns → all; else localizedStandardContains match on id/groupID/name/url).
+  - `ValidationSession` extended: added `sleep` closure param (default Task.sleep) + `selectPlaylists` provider closure param; `monitor()` via `withDiscardingTaskGroup`, `monitorPlaylist()` reload loop (sleep→fetch→re-validate `recordIfNew` dedup by signature→continuity→staleness→monitorState), `abort()`→aborted / `requestStop()`, time-limit deadline via now(), empty-selection note `TOOL.selection-empty`. New `SessionEvent.monitorStateChanged`.
+  - CLI (T040): StatusRenderer handles monitorStateChanged + `--json` status objects to stdout; SIGINT/SIGTERM via DispatchSource → `abort()` + cancel runTask → exit 130 (state==.aborted); `--all` wiring; `PlaylistChecklist.swift` termios checkbox + numbered fallback + select-all when no TTY.
+  - Tests: unit RefreshSchedulerTests/ContinuityCheckerTests/StalenessDetectorTests (Monitoring/), PlaylistSelectionTests (Session/). Integration `LiveMonitoringTests` + `LiveFaultScenarioTests` (+ Support `LiveSessionHarness` driving ManualClock deterministically via sleeperCount, `LivePlaylists` builder; added `sleeperCount`/`elapsedSeconds` to ManualClock).
+- **74 unit tests green** (`swift test`); **integration green** via Xcode (90 total tests in Valistream.xctestplan).
 
-## Rule IDs implemented (fixture/report consistency)
-- RFC8216.4.3.1.1 (EXTM3U first), .4.3.4.2-BANDWIDTH, .4.3.4.2-URI (dangling stream-inf), .4.3.4.1 (EXT-X-MEDIA required attrs), .4.3.4.2.1 (group ref)
-- RFC8216.4.3.3.1 (targetduration), .4.3.3.1-DURATION (segment>target), .4.3.2.1 (missing EXTINF), .4.3.3-DUPLICATE
-- APPLE.codecs/.average-bandwidth/.resolution/.independent-segments/.iframe-playlists/.variant-ladder/.target-duration
-- TOOL.delivery, TOOL.low-latency, TOOL.encryption
+## New rule IDs (US2)
+TOOL.continuity.media-sequence, .head-removal, .segment-stability, .discontinuity-inserted (info), .discontinuity-sequence; TOOL.staleness; TOOL.selection-empty (info).
+
+## Rule IDs (US1, fixture/report consistency)
+RFC8216.4.3.1.1, .4.3.4.2-BANDWIDTH, .4.3.4.2-URI, .4.3.4.1, .4.3.4.2.1, .4.3.3.1, .4.3.3.1-DURATION, .4.3.2.1, .4.3.3-DUPLICATE; APPLE.codecs/.average-bandwidth/.resolution/.independent-segments/.iframe-playlists/.variant-ladder/.target-duration; TOOL.delivery/.low-latency/.encryption.
 
 ## NOT done (remaining)
-- US2 (T029-T040): live monitoring — RefreshScheduler, ContinuityChecker, StalenessDetector, monitoring TaskGroup wiring, PlaylistSelection + interactive checklist (termios), CLI live status + SIGINT->130 + --json. NOTE T040 PlaylistChecklist + any CLI task now lives in `Valistream/Valistream/Valistream/` (Xcode target); new monitoring integration tests go in `Valistream/Valistream/ValistreamIntegrationTests/`.
-- US3 (T041-T050): SessionArchive, FindingsLog (JSONL), DiskSpaceWatcher, SessionReportBuilder. ValidationSession does NOT archive yet; --output-dir accepted but unused.
-- US4 (T051-T055): SegmentAuditor + wiring + CLI flags.
-- Polish (T056-T060).
+- US3 (T041-T050): SessionArchive, FindingsLog (JSONL), DiskSpaceWatcher, SessionReportBuilder, archive-into-lifecycle wiring. ValidationSession does NOT archive yet; --output-dir accepted but unused. CLI summary passes sessionFolder=nil.
+- US4 (T051-T055): SegmentAuditor + wiring + CLI --segments/--tolerance.
+- Polish (T056-T060): message-actionability audit, scale test, styleguide/unit-testing compliance pass, README, full manual quickstart.
 
 ## Deviations / notes
 - swift-tools-version 6.3 (template), not 6.0 as T001 text says.
-- Finding JSON uses .withoutEscapingSlashes (clean URLs).
-- Fixtures are Swift string constants (not .m3u8 resource files); corpus/violation tests in Tests/ValistreamCoreTests/Conformance/.
+- Finding JSON uses .withoutEscapingSlashes.
+- Fixtures are Swift string constants; corpus/violation tests in Tests/ValistreamCoreTests/Conformance/.
 - No git commit made (awaiting user request).
-- Manual quickstart against real streams (T028/T060) not run.
+- Manual quickstart against real streams (T028/T060) not run. PlaylistChecklist termios path build-verified but not runtime-tested (headless env).
+- Monitoring elapsed/staleness measured via injected `now` (Date); tests pin `now` to ManualClock offset so now()+sleep stay consistent.
+- RunAllTests was flaky/cancelled twice in this env; RunSomeTests subsets reliable.

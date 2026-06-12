@@ -70,29 +70,46 @@ struct ValistreamCommand: AsyncParsableCommand {
             bandwidthTolerance: tolerance / 100,
             timeLimit: limit.flatMap(Self.parseDuration),
             outputDir: URL(fileURLWithPath: outputDir),
-            nonInteractive: nonInteractive || !isStdoutTTY(),
+            nonInteractive: nonInteractive || all || !isStdoutTTY(),
             selectionPatterns: select.map { $0.split(separator: ",").map(String.init) }
         )
 
-        let session = ValidationSession(inputURL: inputURL, config: config, fetcher: URLSessionStreamFetcher())
+        // On an interactive terminal, prompt with the checklist; otherwise the session resolves the
+        // selection from --select/--all (FR-018).
+        let selectPlaylists: (@Sendable ([PlaylistSelection.Candidate]) async -> [PlaylistSelection.Candidate])?
+        if config.nonInteractive {
+            selectPlaylists = nil
+        }
+        else {
+            selectPlaylists = { candidates in PlaylistChecklist(candidates: candidates).run() }
+        }
+
+        let session = ValidationSession(
+            inputURL: inputURL,
+            config: config,
+            fetcher: URLSessionStreamFetcher(),
+            selectPlaylists: selectPlaylists
+        )
         let renderer = StatusRenderer(json: json, quiet: quiet)
         let events = session.events
 
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                for await event in events {
-                    renderer.render(event)
-                }
-            }
-            group.addTask {
-                await session.run()
-            }
+        let runTask = Task { await session.run() }
+        let signalSources = Self.installSignalHandlers(session: session, runTask: runTask)
+        defer { signalSources.forEach { $0.cancel() } }
+
+        for await event in events {
+            renderer.render(event)
         }
+        await runTask.value
 
         let findings = await session.recordedFindings
         let state = await session.state
         renderer.renderSummary(findings: findings, state: state, sessionFolder: nil)
 
+        // Graceful interrupt (SIGINT/SIGTERM) — summary still produced (FR-015).
+        if state == .aborted {
+            throw ExitCode(130)
+        }
         if state == .failed {
             throw ExitCode(3)
         }
@@ -104,6 +121,29 @@ struct ValistreamCommand: AsyncParsableCommand {
 
 
     // MARK: - Private
+
+    /// Installs SIGINT/SIGTERM handlers that gracefully abort the session and cancel its run task,
+    /// so in-flight reloads stop promptly and a summary + report are still produced (FR-015,
+    /// contracts/cli-interface.md exit code 130). The returned sources must be retained for the
+    /// duration of the run.
+    private static func installSignalHandlers(
+        session: ValidationSession,
+        runTask: Task<Void, Never>
+    ) -> [any DispatchSourceSignal] {
+        [SIGINT, SIGTERM].map { signalNumber in
+            // Ignore the default disposition so the DispatchSource observes the signal instead.
+            signal(signalNumber, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: signalNumber)
+            source.setEventHandler {
+                Task {
+                    await session.abort()
+                    runTask.cancel()
+                }
+            }
+            source.resume()
+            return source
+        }
+    }
 
     /// Parses a duration string such as `90s`, `15m`, or `24h`.
     private static func parseDuration(_ raw: String) -> Duration? {

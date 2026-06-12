@@ -202,43 +202,43 @@ narrow monitoring (quickstart scenarios 3–4)
 
 ### Tests for User Story 2 (write FIRST, ensure they FAIL) ⚠️
 
-- [ ] T029 [P] [US2] Write cadence scheduler tests with `ManualClock` (RFC 8216 §6.3.4: initial
+- [X] T029 [P] [US2] Write cadence scheduler tests with `ManualClock` (RFC 8216 §6.3.4: initial
       reload after target duration, unchanged → half-TD backoff, never faster — research.md §4) in
       `Tests/ValistreamCoreTests/Monitoring/RefreshSchedulerTests.swift`
-- [ ] T030 [P] [US2] Write continuity checker tests (media sequence regression, retroactive segment
+- [X] T030 [P] [US2] Write continuity checker tests (media sequence regression, retroactive segment
       mutation, premature head removal, discontinuity-sequence consistency — FR-007, data-model.md
       continuity rules) in `Tests/ValistreamCoreTests/Monitoring/ContinuityCheckerTests.swift`
-- [ ] T031 [P] [US2] Write staleness detector tests (warning > 1.5× TD, error > 3× TD, stale
+- [X] T031 [P] [US2] Write staleness detector tests (warning > 1.5× TD, error > 3× TD, stale
       duration in finding context) in
       `Tests/ValistreamCoreTests/Monitoring/StalenessDetectorTests.swift`
-- [ ] T032 [P] [US2] Write selection resolution tests (`--select` pattern matching by id/group/
+- [X] T032 [P] [US2] Write selection resolution tests (`--select` pattern matching by id/group/
       name/URL substring, `--all`, non-TTY auto-default, empty selection → finish with note —
       FR-018) in `Tests/ValistreamCoreTests/Session/PlaylistSelectionTests.swift`
-- [ ] T033 [P] [US2] Write integration test: healthy live scenario (sliding window advanced by
+- [X] T033 [P] [US2] Write integration test: healthy live scenario (sliding window advanced by
       `ManualClock`, all selected playlists refresh on cadence, stop → graceful summary covering
       monitored period) in `Tests/ValistreamIntegrationTests/LiveMonitoringTests.swift`
-- [ ] T034 [P] [US2] Write integration tests: stalling playlist (warning then error with durations),
+- [X] T034 [P] [US2] Write integration tests: stalling playlist (warning then error with durations),
       sequence-regressing playlist (continuity error), discontinuity insertion (info + tracking
       continues), time-limit expiry (FR-015) in
       `Tests/ValistreamIntegrationTests/LiveFaultScenarioTests.swift`
 
 ### Implementation for User Story 2
 
-- [ ] T035 [US2] Implement `RefreshScheduler` (per-playlist cadence state, Clock-driven, change/
+- [X] T035 [US2] Implement `RefreshScheduler` (per-playlist cadence state, Clock-driven, change/
       no-change backoff) in `Sources/ValistreamCore/Monitoring/RefreshScheduler.swift`
-- [ ] T036 [P] [US2] Implement `ContinuityChecker` (refresh n-1 vs n rules) in
+- [X] T036 [P] [US2] Implement `ContinuityChecker` (refresh n-1 vs n rules) in
       `Sources/ValistreamCore/Monitoring/ContinuityChecker.swift`
-- [ ] T037 [P] [US2] Implement `StalenessDetector` in
+- [X] T037 [P] [US2] Implement `StalenessDetector` in
       `Sources/ValistreamCore/Monitoring/StalenessDetector.swift`
-- [ ] T038 [US2] Wire monitoring into `ValidationSession`: `TaskGroup` per selected playlist,
+- [X] T038 [US2] Wire monitoring into `ValidationSession`: `TaskGroup` per selected playlist,
       re-validation each refresh (rules + continuity), cancellation-safe stop, `--limit` expiry,
       per-playlist `monitorState` updates on event stream in
       `Sources/ValistreamCore/Session/ValidationSession.swift`
-- [ ] T039 [US2] Implement playlist selection: selection model + non-interactive resolution in
+- [X] T039 [US2] Implement playlist selection: selection model + non-interactive resolution in
       `Sources/ValistreamCore/Session/PlaylistSelection.swift`; interactive checkbox checklist
       (termios raw mode: arrows/space/enter/`a`; numbered-list fallback when raw mode unavailable —
       research.md §7) in `Sources/valistream/PlaylistChecklist.swift`
-- [ ] T040 [US2] Extend CLI: live status rendering (per-playlist monitor state, finding counts),
+- [X] T040 [US2] Extend CLI: live status rendering (per-playlist monitor state, finding counts),
       SIGINT/SIGTERM graceful stop → exit 130, `--json` JSON Lines output mode + `--quiet`
       (contracts/cli-interface.md output streams). Verify quickstart scenarios 3–4 manually.
 

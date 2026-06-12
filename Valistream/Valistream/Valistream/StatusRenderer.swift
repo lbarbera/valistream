@@ -26,9 +26,14 @@ struct StatusRenderer: Sendable {
     func render(_ event: SessionEvent) {
         switch event {
         case .stateChanged(let state):
-            renderStatus("• \(state.rawValue)")
+            renderEventStatus(["type": "status", "state": state.rawValue], human: "• \(state.rawValue)")
         case .streamClassified(let kind):
-            renderStatus("• stream classified as \(kind.rawValue)")
+            renderEventStatus(["type": "status", "classification": kind.rawValue], human: "• stream classified as \(kind.rawValue)")
+        case .monitorStateChanged(let playlistID, let state):
+            renderEventStatus(
+                ["type": "status", "playlist": playlistID, "monitorState": state.rawValue],
+                human: "• [\(playlistID)] \(state.rawValue)"
+            )
         case .finding(let finding):
             renderFinding(finding)
         }
@@ -60,6 +65,23 @@ struct StatusRenderer: Sendable {
         let level = finding.severity.rawValue.uppercased()
         let location = finding.location?.line.map { " :\($0)" } ?? ""
         print("\(level) [\(finding.category.rawValue)/\(finding.ruleId)] \(finding.resource.absoluteString)\(location) — \(finding.message)")
+    }
+
+    /// Renders a non-finding status event: as a JSON status object on stdout in `--json` mode, or as
+    /// a human chrome line otherwise (contracts/cli-interface.md output streams).
+    private func renderEventStatus(_ object: [String: String], human: String) {
+        guard !quiet else { return }
+        if json {
+            guard let data = try? JSONSerialization.data(withJSONObject: object),
+                  let line = String(data: data, encoding: .utf8)
+            else {
+                return
+            }
+            print(line)
+        }
+        else {
+            print(human)
+        }
     }
 
     private func renderStatus(_ message: String) {

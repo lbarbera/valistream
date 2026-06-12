@@ -7,6 +7,7 @@
 
 import Foundation
 import os
+import ValistreamCore
 
 /// A deterministic `Clock` whose time only moves when a test calls ``advance(by:)``.
 ///
@@ -65,6 +66,17 @@ final class ManualClock: Clock, @unchecked Sendable {
     var now: Instant { lock.withLock { $0.now } }
 
     var minimumResolution: Duration { .zero }
+
+    /// The number of tasks currently suspended in ``sleep(until:tolerance:)``.
+    ///
+    /// Tests poll this to know a monitor loop has parked on the clock before advancing it, so a
+    /// cadence step deterministically wakes exactly the intended sleepers.
+    var sleeperCount: Int { lock.withLock { $0.sleepers.count } }
+
+    /// The current time expressed as fractional seconds since the clock's start.
+    var elapsedSeconds: Double {
+        now.offset.seconds
+    }
 
 
 

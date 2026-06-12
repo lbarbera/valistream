@@ -49,4 +49,5 @@ public enum SessionEvent: Sendable {
     case stateChanged(SessionState)
     case streamClassified(StreamKind)
     case finding(Finding)
+    case monitorStateChanged(playlistID: String, state: MonitorState)
 }
