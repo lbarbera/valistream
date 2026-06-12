@@ -1,0 +1,36 @@
+{
+  "configurations" : [
+    {
+      "id" : "EFFF645B-3036-493E-B0EA-6819E9890FD7",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:",
+      "identifier" : "valistream",
+      "name" : "valistream"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "ValistreamCoreTests",
+        "name" : "ValistreamCoreTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "ValistreamIntegrationTests",
+        "name" : "ValistreamIntegrationTests"
+      }
+    }
+  ],
+  "version" : 1
+}

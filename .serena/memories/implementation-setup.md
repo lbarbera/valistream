@@ -13,8 +13,8 @@ SwiftPM package root: `Valistream/` (NOT repo root). Xcode has it open.
 tasks.md uses paths like `Sources/ValistreamCore/...` — these are relative to `Valistream/`, so prefix with `Valistream/`.
 
 ## Build / test (binding: use xcode-tools MCP)
-- Build: `BuildProject` tabIdentifier=`windowtab1`
-- Test all: `RunAllTests` tabIdentifier=`windowtab1`; test plan `Valistream-Package`
+- Build: `BuildProject` 
+- Test all: `RunAllTests`
 - Test subset: `RunSomeTests` with `[{targetName, testIdentifier}]` (e.g. `M3U8TokenizerTests` or `M3U8TokenizerTests/handlesCRLF()`)
 
 ## IMPORTANT: Serena LSP unavailable for Swift

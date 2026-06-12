@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "1125C3A8-F3BA-4EB0-8913-629ACC5B0F66",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "ValistreamCoreTests",
+        "name" : "ValistreamCoreTests"
+      }
+    }
+  ],
+  "version" : 1
+}
