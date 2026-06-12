@@ -232,17 +232,19 @@ not.
 - **FR-004**: The tool MUST enumerate and fetch every media playlist referenced by the master playlist
   — video variants, audio renditions, subtitle renditions, and I-frame playlists — and validate each
   against the validation baseline defined in FR-003.
-- **FR-005**: The tool MUST classify the stream as live or on-demand from playlist properties and
-  report the classification to the user.
+- **FR-005**: The tool MUST classify the stream as live, event (append-only live), or on-demand
+  from playlist properties and report the classification to the user. Event streams are monitored
+  with the same cadence rules as live streams.
 - **FR-006**: For live streams, the tool MUST re-fetch every monitored media playlist at the refresh
   cadence defined by the HLS specification (derived from the playlist's target duration) and
   re-validate it on every refresh, mirroring the request pattern of a real player while covering all
   selected renditions simultaneously (all of them by default).
 - **FR-007**: For live streams, the tool MUST validate continuity between consecutive refreshes of
   each media playlist, including: media sequence numbers never decrease; published segment entries are
-  not retroactively altered; segments are not removed earlier than the specification allows;
-  discontinuity tracking remains consistent; and a playlist that fails to update within its expected
-  update window is flagged as stale, including the stale duration.
+  not retroactively altered; segments are not removed earlier than the specification allows (for
+  event streams, which are append-only, any removal of a previously published segment is a
+  continuity error); discontinuity tracking remains consistent; and a playlist that fails to update
+  within its expected update window is flagged as stale, including the stale duration.
 - **FR-008**: Every finding MUST carry a severity (error, warning, info) and a category (master
   playlist, media playlist, continuity, delivery/network, segment), and MUST identify the affected
   resource, the time it was observed, and the rule or expectation violated, including which standard
@@ -258,7 +260,10 @@ not.
 - **FR-012**: The tool MUST offer an optional, per-session segment validation mode (disabled by
   default) which downloads referenced media segments and flags any segment whose measured size implies
   a bitrate exceeding the declared bandwidth for its variant beyond a configurable tolerance
-  (default 10%). Coverage when enabled is complete within the selected playlists: for on-demand
+  (default 10%). Comparison basis follows Apple authoring semantics: the largest implied segment
+  bitrate is checked against the variant's declared peak bandwidth (BANDWIDTH), and the average
+  implied bitrate across observed segments against the declared average bandwidth
+  (AVERAGE-BANDWIDTH) when present. Coverage when enabled is complete within the selected playlists: for on-demand
   streams every segment of every selected playlist; for live streams every newly published segment
   across all monitored playlists.
 - **FR-013**: The tool MUST NOT decode, decrypt, or play media content; encrypted segments are treated

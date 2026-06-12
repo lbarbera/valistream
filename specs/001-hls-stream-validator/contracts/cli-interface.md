@@ -54,7 +54,7 @@ confirms, `a` toggles all). Non-TTY fallback: selection prompt is skipped, all s
 | `1` | Session completed; at least one error-severity finding |
 | `2` | Usage error: invalid URL/flags (no session folder created) |
 | `3` | Fatal runtime failure: initial fetch impossible, storage failure mid-session (partial session folder preserved — US3 scenario 3) |
-| `130` | Interrupted (SIGINT/SIGTERM); summary + report still written for the observed period (FR-015) |
+| `130` | Interrupted (SIGINT/SIGTERM); summary + report still written for the observed period (FR-015). Deliberately unified: `130` is returned for any termination signal, simplifying the shell `128+N` convention |
 
 Automation contract: `0` vs `1` is the pass/fail signal for CI checks (Clarification #2 —
 automation-friendly).

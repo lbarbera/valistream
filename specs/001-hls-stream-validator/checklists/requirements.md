@@ -34,7 +34,8 @@
 - Validation iteration 1: all items pass.
 - RFC 8216 is referenced as the external conformance standard (domain reference, not an
   implementation detail).
-- Interface form factor (CLI vs. app) intentionally deferred to planning; recorded in Assumptions.
+- Interface form factor resolved during clarification: command-line tool (Clarifications session
+  2026-06-12).
 - Ambiguities resolved via documented defaults in Assumptions (live mode monitors all playlists;
   segment mode off by default with 10% tolerance; RFC 8216 as spec baseline) — no open
   clarifications block planning.

@@ -17,3 +17,43 @@ Implementation rules (binding):
   `swift-api-design-guidelines`, `swift-architecture`, `swift-language`
 - Integration tests use scripted in-process transport stubs — no local HTTP server
 <!-- SPECKIT END -->
+
+
+## Additional implementation rules (binding)
+
+**Sources folder → "Valistream"**
+
+Do before impl start:
+1. Activate project in **serena**
+2. Check availability of **serena** and **xcode-tools** MCPs. Hard stop if any not avail. Ask user to fix
+
+### Serena
+
+Must use **serena** for:
+- code inspection, semantic retrieval
+- code editing
+- memory management
+
+**Warning:** For Bash code inspection → **explicit** permission needed!
+
+
+### Xcode-tools
+
+Must use **xcode-tools** for:
+- code experiment & validate → `ExecuteSnippet`
+- build validation → `BuildProject`, `XcodeListNavigatorIssues`, `GetBuildLog`, `XcodeRefreshCodeIssuesInFile`
+- documentation search → `DocumentationSearch`
+
+
+### Memory
+
+Use **serena** tools for memory management!
+No built-in memory usage
+
+
+### Documentation lookup
+
+1. **xcode-tools** `DocumentationSearch`
+
+Hard stop if not avail! Ask user to fix.
+**Warning:** No WebSearch is allowed!

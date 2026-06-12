@@ -101,9 +101,13 @@ everything every story builds on
 - [ ] T014 Implement `ValidationSession` actor skeleton (state machine, config, event
       `AsyncStream` for status/findings — research.md §9) in
       `Sources/ValistreamCore/Session/ValidationSession.swift`
+- [ ] T015 Implement rule engine: `ValidationRule` protocol, rule registry, evaluation context
+      (playlist + token stream + session info), rule metadata (id, source, default severity) in
+      `Sources/ValistreamCore/Validation/RuleEngine.swift` — shared by US1/US2/US4, foundational
+      per constitution Principle IV
 
 **Checkpoint**: Parser round-trips fixtures; transport + clock seams exist; session skeleton drives
-state transitions — user story implementation can begin
+state transitions; rule engine scaffold ready — user story implementation can begin
 
 ---
 
@@ -118,38 +122,35 @@ scenarios 1–2)
 
 ### Tests for User Story 1 (write FIRST, ensure they FAIL) ⚠️
 
-- [ ] T015 [P] [US1] Build conformant fixture corpus (modeled on Apple reference streams: multivariant
-      master, video/audio/subtitle/I-frame playlists, VOD + event + live forms) in
+- [ ] T016 [P] [US1] Build conformant fixture corpus (modeled on Apple reference streams: master
+      playlist + video/audio/subtitle/I-frame playlists, VOD + event + live forms) in
       `Tests/ValistreamCoreTests/Fixtures/conformant/` + corpus runner test asserting zero
       error/warning findings in `Tests/ValistreamCoreTests/Conformance/ConformantCorpusTests.swift`
-- [ ] T016 [P] [US1] Build seeded-violation fixtures for RFC 8216 master-playlist rules (one
+- [ ] T017 [P] [US1] Build seeded-violation fixtures for RFC 8216 master-playlist rules (one
       violation family per file: missing/duplicate required tags, bad attribute values, unresolvable
       group references) in `Tests/ValistreamCoreTests/Fixtures/violations/master/` + expected-finding
       assertions (ruleId, severity, line) in
       `Tests/ValistreamCoreTests/Conformance/MasterViolationTests.swift`
-- [ ] T017 [P] [US1] Build seeded-violation fixtures for RFC 8216 media-playlist rules (target
+- [ ] T018 [P] [US1] Build seeded-violation fixtures for RFC 8216 media-playlist rules (target
       duration violations, sequence tags, endlist anomalies, segment duration overruns) in
       `Tests/ValistreamCoreTests/Fixtures/violations/media/` + assertions in
       `Tests/ValistreamCoreTests/Conformance/MediaViolationTests.swift`
-- [ ] T018 [P] [US1] Build seeded-violation fixtures for Apple authoring rules (ladder gaps/dupes,
+- [ ] T019 [P] [US1] Build seeded-violation fixtures for Apple authoring rules (ladder gaps/dupes,
       missing CODECS/RESOLUTION/AVERAGE-BANDWIDTH, missing I-frame playlists, inconsistent rendition
       groups, missing EXT-X-INDEPENDENT-SEGMENTS — research.md §5 list) in
       `Tests/ValistreamCoreTests/Fixtures/violations/authoring/` + assertions in
       `Tests/ValistreamCoreTests/Conformance/AuthoringViolationTests.swift`
-- [ ] T019 [P] [US1] Write integration tests: one-shot VOD session over `ScriptedStreamFetcher` —
+- [ ] T020 [P] [US1] Write integration tests: one-shot VOD session over `ScriptedStreamFetcher` —
       happy path (classification `vod`, all media fetched+validated, completion summary), LL-HLS
       tags → info finding (FR-017), encrypted stream → info finding (FR-013) in
       `Tests/ValistreamIntegrationTests/OneShotSessionTests.swift`
-- [ ] T020 [P] [US1] Write integration tests: delivery failures — unreachable URL, non-playlist
+- [ ] T021 [P] [US1] Write integration tests: delivery failures — unreachable URL, non-playlist
       body, HTTP error status, redirect chain recorded, direct media-playlist URL standalone
       validation (FR-002/FR-014, US1 acceptance 3–4) in
       `Tests/ValistreamIntegrationTests/DeliveryFailureTests.swift`
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] Implement rule engine: `ValidationRule` protocol, rule registry, evaluation context
-      (playlist + token stream + session info), rule metadata (id, source, default severity) in
-      `Sources/ValistreamCore/Validation/RuleEngine.swift`
 - [ ] T022 [P] [US1] Implement RFC 8216 master-playlist rule set in
       `Sources/ValistreamCore/Validation/Rules/RFC8216MasterRules.swift`
 - [ ] T023 [P] [US1] Implement RFC 8216 media-playlist rule set in
@@ -166,8 +167,9 @@ scenarios 1–2)
       finishing → completed; findings emitted on event stream) in
       `Sources/ValistreamCore/Session/ValidationSession.swift`
 - [ ] T028 [US1] Implement CLI v1 in `Sources/valistream/ValistreamCommand.swift` +
-      `Sources/valistream/StatusRenderer.swift`: argument parsing (URL, `--output-dir` accepted but
-      archive lands in US3), live status + findings rendering (FR-009), exit codes 0/1/2/3 per
+      `Sources/valistream/StatusRenderer.swift`: argument parsing (URL; `--output-dir` accepted now
+      with help text noting the archive arrives when US3 lands), live status + findings rendering
+      (FR-009), exit codes 0/1/2/3 per
       contracts/cli-interface.md. Verify quickstart scenarios 1–2 manually.
 
 **Checkpoint**: US1 fully functional — conformance corpus green, CLI validates real streams, MVP
@@ -268,8 +270,9 @@ scenario 6)
       thresholds, periodic check on archive flush) in
       `Sources/ValistreamCore/Archive/DiskSpaceWatcher.swift`
 - [ ] T049 [US3] Implement session report builder (`report.json` per schema incl. cadence adherence
-      + staleness episodes + artifact index; human `report.md`) in
-      `Sources/ValistreamCore/Session/SessionReportBuilder.swift`
+      + staleness episodes + artifact index; human `report.md`; monitoring-derived fields
+      `cadenceAdherence`/`stalenessEpisodes` are null for one-shot sessions without US2 monitoring)
+      in `Sources/ValistreamCore/Session/SessionReportBuilder.swift`
 - [ ] T050 [US3] Wire archive into session lifecycle: every fetch archived (SC-004), findings
       streamed to JSONL, reports written on completed/aborted/failed, storage failure → alert +
       clean stop (edge case), CLI prints session folder path at end. Verify quickstart scenario 6
@@ -325,8 +328,11 @@ bodies (quickstart scenario 5)
       (naming, structure, doc comments per swift-api-design-guidelines for public core API)
 - [ ] T059 [P] Write `README.md` (install, usage, flags, exit codes, session folder anatomy —
       derived from quickstart.md + contracts/cli-interface.md)
-- [ ] T060 Full manual quickstart run-through (scenarios 1–6) against real streams; record results +
-      deviations in `specs/001-hls-stream-validator/quickstart.md` verification checklist
+- [ ] T060 Full manual quickstart run-through (scenarios 1–6) against real streams; additionally
+      (a) run a ≥ 24 h live soak against a production stream and record cadence adherence from
+      `report.json` (SC-003), (b) perform a timed root-cause walkthrough of seeded-defect sessions
+      to validate the 5-minute target (SC-005 measurement protocol); record results + deviations in
+      `specs/001-hls-stream-validator/quickstart.md` verification checklist
 
 ---
 
@@ -337,8 +343,10 @@ bodies (quickstart scenario 5)
 - **Setup (Phase 1)**: no dependencies
 - **Foundational (Phase 2)**: depends on Setup — BLOCKS all user stories
 - **US1 (Phase 3)**: depends on Foundational
-- **US2 (Phase 4)**: depends on Foundational + US1's rule engine (T021) for per-refresh
-  re-validation; monitoring components (T029–T037) independent of US1
+- **US2 (Phase 4)**: depends on Foundational (rule engine is T015 there) and reuses US1's rule
+  sets (T022–T024) for per-refresh re-validation — sequential P1 → P2 delivery sanctioned by
+  spec.md US2 ("Depends on User Story 1's validation core"); monitoring components (T029–T037)
+  are independent of US1
 - **US3 (Phase 5)**: depends on Foundational + US1's session flow (T027); independent of US2
   (archives one-shot sessions just fine)
 - **US4 (Phase 6)**: depends on US1 (selection of playlists + session flow); live-segment tracking
@@ -353,8 +361,10 @@ bodies (quickstart scenario 5)
 
 ### Parallel Opportunities
 
-- Phase 2: T004, T005 together; then T008, T009, T011, T012, T013 in parallel after T006/T007
-- US1: all test tasks T015–T020 in parallel; rule sets T022–T024 in parallel after T021
+- Phase 2: T004, T005 together; then T008, T009, T011, T012, T013 in parallel after T006/T007;
+  T014–T015 last (T015 needs T007 + T008)
+- US1: all test tasks T016–T021 in parallel; rule sets T022–T024 in parallel (engine T015 already
+  landed in Phase 2)
 - US2: all test tasks T029–T034 in parallel; T036, T037 in parallel after T035
 - US3: all test tasks T041–T045 in parallel; T047, T048 in parallel after T046
 - Different stories CAN be parallelized by different agents after their dependency tasks land
@@ -366,14 +376,14 @@ bodies (quickstart scenario 5)
 
 ```bash
 # Launch all US1 test/fixture tasks together:
-Task: T015 conformant corpus + runner
-Task: T016 RFC master violation fixtures
-Task: T017 RFC media violation fixtures
-Task: T018 Apple authoring violation fixtures
-Task: T019 one-shot integration tests
-Task: T020 delivery-failure integration tests
+Task: T016 conformant corpus + runner
+Task: T017 RFC master violation fixtures
+Task: T018 RFC media violation fixtures
+Task: T019 Apple authoring violation fixtures
+Task: T020 one-shot integration tests
+Task: T021 delivery-failure integration tests
 
-# After T021 (rule engine), launch rule sets together:
+# Rule sets together (engine T015 ready from Phase 2):
 Task: T022 RFC master rules
 Task: T023 RFC media rules
 Task: T024 Apple authoring rules
