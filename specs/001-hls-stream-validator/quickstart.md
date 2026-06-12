@@ -13,7 +13,7 @@ Runnable scenarios proving the feature end-to-end. Interface details:
 
 ## Build & Test
 
-The library + tests live in the SwiftPM package (`Valistream/Package/`); the CLI is an Xcode tool
+The library + tests live in the SwiftPM package (`Valistream/ValistreamCore/`); the CLI is an Xcode tool
 target built through the workspace (`Valistream/Valistream.xcworkspace`).
 
 ```bash

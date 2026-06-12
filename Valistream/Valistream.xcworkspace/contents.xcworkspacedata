@@ -5,6 +5,9 @@
       location = "group:Valistream/Valistream.xcodeproj">
    </FileRef>
    <FileRef
-      location = "container:Package">
+      location = "group:ValistreamCore">
+   </FileRef>
+   <FileRef
+      location = "group:TestPlans">
    </FileRef>
 </Workspace>

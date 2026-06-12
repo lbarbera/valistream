@@ -22,7 +22,7 @@ Implementation rules (binding):
 ## Additional implementation rules (binding)
 
 **Project layout (after Xcode restructure):**
-- SwiftPM package -> `Valistream/Package/` -- builds the `ValistreamCore` library + test targets only
+- SwiftPM package -> `Valistream/ValistreamCore/` -- builds the `ValistreamCore` library + test targets only
 - CLI tool -> `Valistream/Valistream/Valistream.xcodeproj` target **Valistream** (sources in
   `Valistream/Valistream/Valistream/`); depends on `ValistreamCore` + `ArgumentParser` via SwiftPM
 - Workspace -> `Valistream/Valistream.xcworkspace` ties the project and package together

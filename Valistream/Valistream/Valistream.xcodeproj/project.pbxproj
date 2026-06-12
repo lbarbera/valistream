@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		AAAAAAAAAAAAAAAAAAAAAA04 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = AAAAAAAAAAAAAAAAAAAAAA02 /* ArgumentParser */; };
 		AAAAAAAAAAAAAAAAAAAAAA05 /* ValistreamCore in Frameworks */ = {isa = PBXBuildFile; productRef = AAAAAAAAAAAAAAAAAAAAAA03 /* ValistreamCore */; };
+		F15A62642FDC628C00460679 /* ValistreamCore in Frameworks */ = {isa = PBXBuildFile; productRef = F15A62632FDC628C00460679 /* ValistreamCore */; };
+		F15A62722FDC647A00460679 /* ValistreamCore in Frameworks */ = {isa = PBXBuildFile; productRef = F15A62712FDC647A00460679 /* ValistreamCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,12 +27,18 @@
 
 /* Begin PBXFileReference section */
 		F15A62492FDC4E6300460679 /* Valistream */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Valistream; sourceTree = BUILT_PRODUCTS_DIR; };
+		F15A62692FDC645F00460679 /* ValistreamIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ValistreamIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F15A624B2FDC4E6300460679 /* Valistream */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Valistream;
+			sourceTree = "<group>";
+		};
+		F15A626A2FDC645F00460679 /* ValistreamIntegrationTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ValistreamIntegrationTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -40,8 +48,17 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F15A62642FDC628C00460679 /* ValistreamCore in Frameworks */,
 				AAAAAAAAAAAAAAAAAAAAAA04 /* ArgumentParser in Frameworks */,
 				AAAAAAAAAAAAAAAAAAAAAA05 /* ValistreamCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F15A62662FDC645F00460679 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F15A62722FDC647A00460679 /* ValistreamCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -52,6 +69,8 @@
 			isa = PBXGroup;
 			children = (
 				F15A624B2FDC4E6300460679 /* Valistream */,
+				F15A626A2FDC645F00460679 /* ValistreamIntegrationTests */,
+				F15A62702FDC647A00460679 /* Frameworks */,
 				F15A624A2FDC4E6300460679 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -60,8 +79,16 @@
 			isa = PBXGroup;
 			children = (
 				F15A62492FDC4E6300460679 /* Valistream */,
+				F15A62692FDC645F00460679 /* ValistreamIntegrationTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		F15A62702FDC647A00460679 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -86,10 +113,34 @@
 			packageProductDependencies = (
 				AAAAAAAAAAAAAAAAAAAAAA02 /* ArgumentParser */,
 				AAAAAAAAAAAAAAAAAAAAAA03 /* ValistreamCore */,
+				F15A62632FDC628C00460679 /* ValistreamCore */,
 			);
 			productName = Valistream;
 			productReference = F15A62492FDC4E6300460679 /* Valistream */;
 			productType = "com.apple.product-type.tool";
+		};
+		F15A62682FDC645F00460679 /* ValistreamIntegrationTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F15A626D2FDC645F00460679 /* Build configuration list for PBXNativeTarget "ValistreamIntegrationTests" */;
+			buildPhases = (
+				F15A62652FDC645F00460679 /* Sources */,
+				F15A62662FDC645F00460679 /* Frameworks */,
+				F15A62672FDC645F00460679 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F15A626A2FDC645F00460679 /* ValistreamIntegrationTests */,
+			);
+			name = ValistreamIntegrationTests;
+			packageProductDependencies = (
+				F15A62712FDC647A00460679 /* ValistreamCore */,
+			);
+			productName = ValistreamIntegrationTests;
+			productReference = F15A62692FDC645F00460679 /* ValistreamIntegrationTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -102,6 +153,9 @@
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					F15A62482FDC4E6300460679 = {
+						CreatedOnToolsVersion = 26.5;
+					};
+					F15A62682FDC645F00460679 = {
 						CreatedOnToolsVersion = 26.5;
 					};
 				};
@@ -117,6 +171,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AAAAAAAAAAAAAAAAAAAAAA01 /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
+				F15A62622FDC628C00460679 /* XCLocalSwiftPackageReference "../ValistreamCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F15A624A2FDC4E6300460679 /* Products */;
@@ -124,12 +179,30 @@
 			projectRoot = "";
 			targets = (
 				F15A62482FDC4E6300460679 /* Valistream */,
+				F15A62682FDC645F00460679 /* ValistreamIntegrationTests */,
 			);
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		F15A62672FDC645F00460679 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		F15A62452FDC4E6300460679 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F15A62652FDC645F00460679 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -285,6 +358,42 @@
 			};
 			name = Release;
 		};
+		F15A626E2FDC645F00460679 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U39BTEC455;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = no.altibox.tools.ValistreamIntegrationTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F15A626F2FDC645F00460679 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U39BTEC455;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = no.altibox.tools.ValistreamIntegrationTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -306,7 +415,23 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		F15A626D2FDC645F00460679 /* Build configuration list for PBXNativeTarget "ValistreamIntegrationTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F15A626E2FDC645F00460679 /* Debug */,
+				F15A626F2FDC645F00460679 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		F15A62622FDC628C00460679 /* XCLocalSwiftPackageReference "../ValistreamCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ValistreamCore;
+		};
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		AAAAAAAAAAAAAAAAAAAAAA01 /* XCRemoteSwiftPackageReference "swift-argument-parser" */ = {
@@ -326,6 +451,14 @@
 			productName = ArgumentParser;
 		};
 		AAAAAAAAAAAAAAAAAAAAAA03 /* ValistreamCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ValistreamCore;
+		};
+		F15A62632FDC628C00460679 /* ValistreamCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ValistreamCore;
+		};
+		F15A62712FDC647A00460679 /* ValistreamCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ValistreamCore;
 		};

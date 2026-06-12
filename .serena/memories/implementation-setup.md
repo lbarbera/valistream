@@ -3,7 +3,7 @@
 ## Layout (after Xcode restructure — June 2026)
 Workspace `Valistream/Valistream.xcworkspace` (xcode-tools tab `windowtab1`) joins two members:
 
-- **SwiftPM package** -> `Valistream/Package/` — builds `ValistreamCore` library + test targets ONLY (no executable).
+- **SwiftPM package** -> `Valistream/ValistreamCore/` — builds `ValistreamCore` library + test targets ONLY (no executable).
   - `Package/Sources/ValistreamCore/{Playlist,Validation,Validation/Rules,Monitoring,Networking,Archive,Segments,Session}/`
   - `Package/Tests/ValistreamCoreTests/` (+ `_setup/Tags.swift`, `Fixtures/`), `Package/Tests/ValistreamIntegrationTests/Support/`
   - swift-tools 6.3, swiftLanguageModes [.v6], platforms macOS 14. Only product: `.library(ValistreamCore)`. NO external deps now (swift-argument-parser removed from package).
@@ -13,11 +13,11 @@ Workspace `Valistream/Valistream.xcworkspace` (xcode-tools tab `windowtab1`) joi
   - Built binary name = `Valistream` (capital, PRODUCT_NAME=$(TARGET_NAME)). CLI/help invocation name still `valistream` (ArgumentParser commandName).
 
 ## Task->path mapping (tasks.md)
-`Sources/ValistreamCore/...` -> prefix with `Valistream/Package/`. CLI `Sources/valistream/...` -> now `Valistream/Valistream/Valistream/` (Xcode target, not the package).
+`Sources/ValistreamCore/...` -> prefix with `Valistream/ValistreamCore/`. CLI `Sources/valistream/...` -> now `Valistream/Valistream/Valistream/` (Xcode target, not the package).
 
 ## Build / test (binding: xcode-tools MCP, tab windowtab1)
 - Build CLI + its deps: `BuildProject` (builds workspace; resolves packages, compiles ValistreamCore + CLI). Verified green; CLI `--version`->0.1.0, bad URL->exit 2.
-- Package lib/tests: `swift test` inside `Valistream/Package/` (RunAllTests via workspace only if a scheme covers the package test targets — not confirmed).
+- Package lib/tests: `swift test` inside `Valistream/ValistreamCore/` (RunAllTests via workspace only if a scheme covers the package test targets — not confirmed).
 - Test subset: `RunSomeTests` [{targetName, testIdentifier}].
 - Built CLI binary path: DerivedData `.../Valistream-*/Build/Products/Debug/Valistream`.
 

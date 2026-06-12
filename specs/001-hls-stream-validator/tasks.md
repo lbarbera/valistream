@@ -35,9 +35,9 @@ US2 = live monitoring (P2), US3 = session archive (P3), US4 = segment bandwidth 
 
 ## Path Conventions
 
-SwiftPM package at `Valistream/Package/` (plan.md Project Structure): `Sources/ValistreamCore/…`
+SwiftPM package at `Valistream/ValistreamCore/` (plan.md Project Structure): `Sources/ValistreamCore/…`
 (library), `Tests/ValistreamCoreTests/…` (unit/conformance), `Tests/ValistreamIntegrationTests/…`
-(integration) — all relative to `Valistream/Package/`.
+(integration) — all relative to `Valistream/ValistreamCore/`.
 
 > **Restructure note (post-MVP):** the `valistream` CLI executable was moved out of the package
 > into the Xcode tool target `Valistream` (`Valistream/Valistream/Valistream.xcodeproj`). Its

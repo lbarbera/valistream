@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Valistream",
+    name: "ValistreamCore",
     platforms: [
         .macOS(.v14)
     ],
@@ -21,11 +21,7 @@ let package = Package(
         .testTarget(
             name: "ValistreamCoreTests",
             dependencies: ["ValistreamCore"]
-        ),
-        .testTarget(
-            name: "ValistreamIntegrationTests",
-            dependencies: ["ValistreamCore"]
-        ),
+        )
     ],
     swiftLanguageModes: [.v6]
 )
