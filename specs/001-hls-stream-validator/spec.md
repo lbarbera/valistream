@@ -17,6 +17,12 @@ status & findings while tool is active. Findings categorized. All downloaded art
 segments) are saved into disk (folder per session) with full request/response info (timestamps, ip
 address, headers, etc.)"
 
+> **Scope change (2026-06-13):** User Story 4 (Segment Bandwidth Verification) has been **dropped
+> from this feature** and deferred to a separate future feature. The segment-download / declared-
+> bandwidth audit is no longer part of the 001 MVP. Requirement and entity IDs are preserved (marked
+> *Deferred*) to keep traceability stable; see the scope-boundaries assumption at the end of this
+> document.
+
 ## Clarifications
 
 ### Session 2026-06-12
@@ -35,12 +41,13 @@ address, headers, etc.)"
 - Q: When segment validation mode is enabled, which segments are downloaded and checked? → A: All
   referenced segments — live: every newly published segment across all monitored playlists; VOD:
   every segment of every variant. Complete audit; download volume is the user's informed opt-in.
+  *(Superseded 2026-06-13: segment validation deferred to a future feature — see Scope change above.)*
 - Q: Should Apple HLS Authoring Specification checks be part of the validation baseline? → A: Yes —
   playlist-observable Apple HLS Authoring Specification requirements are validated alongside
   RFC 8216; authoring checks that would require decoding media content remain out of scope.
 - Q: Can the user choose which media playlists are monitored in a session? → A: Yes — after the
   master playlist is validated, the discovered media playlists are presented as an interactive
-  checklist with all entries pre-selected; live monitoring and segment downloads cover only the
+  checklist with all entries pre-selected; live monitoring covers only the
   selected playlists. Initial one-shot validation always covers all referenced playlists.
   Non-interactive runs bypass the prompt (default: all, or a pre-specified selection).
 
@@ -156,35 +163,12 @@ request the tool reported corresponds to a stored artifact with complete request
 
 ---
 
-### User Story 4 - Segment Bandwidth Verification (Priority: P4)
+### User Story 4 - Segment Bandwidth Verification (Priority: P4) — DEFERRED
 
-An engineer suspects that the stream's declared bandwidth values are wrong — a common cause of player
-buffering or wrong-variant selection. They enable the optional segment validation mode for a session.
-The tool then also downloads the media segments referenced by the playlists and compares each
-segment's actual size (relative to its duration) against the bandwidth the master playlist declared
-for that variant. Segments whose measured size implies a bitrate exceeding the declared values beyond
-the configured tolerance are flagged. Segment content is never decoded — encrypted (DRM) segments are
-handled as opaque data and still size-checked.
-
-**Why this priority**: Valuable diagnostic, but optional by the user's own description, adds
-significant download volume, and depends on all prior stories.
-
-**Independent Test**: Enable segment mode against a stream whose actual segment bitrates are known;
-verify segments exceeding declared bandwidth beyond tolerance are flagged and conformant segments are
-not.
-
-**Acceptance Scenarios**:
-
-1. **Given** segment validation is enabled, **When** the session runs, **Then** referenced segments
-   are downloaded and each segment's measured size is evaluated against the declared bandwidth for its
-   variant, flagging deviations beyond the configured tolerance.
-2. **Given** an encrypted (DRM-protected) stream with segment validation enabled, **When** segments
-   are downloaded, **Then** no decoding or decryption is attempted, size checks still run, and the
-   presence of encryption is recorded as an informational finding.
-3. **Given** a segment download that fails (e.g., not found, timeout), **When** the failure occurs,
-   **Then** a delivery error finding is raised identifying the segment address and failure reason.
-4. **Given** a session started without enabling segment validation, **When** the session runs,
-   **Then** no segment bodies are downloaded.
+> **Deferred (2026-06-13):** Moved out of this feature to a separate future feature. Segment download
+> and declared-bandwidth auditing are **not** part of the 001 MVP, and this feature downloads no
+> segment bodies. The original narrative and acceptance scenarios remain in git history; the
+> dedicated future feature will restate and expand them.
 
 ---
 
@@ -246,7 +230,7 @@ not.
   continuity error); discontinuity tracking remains consistent; and a playlist that fails to update
   within its expected update window is flagged as stale, including the stale duration.
 - **FR-008**: Every finding MUST carry a severity (error, warning, info) and a category (master
-  playlist, media playlist, continuity, delivery/network, segment), and MUST identify the affected
+  playlist, media playlist, continuity, delivery/network), and MUST identify the affected
   resource, the time it was observed, and the rule or expectation violated, including which standard
   the rule comes from (HLS specification vs. Apple HLS Authoring Specification).
 - **FR-009**: While a session is active, the tool MUST continuously present session status: current
@@ -257,17 +241,11 @@ not.
 - **FR-011**: Each stored artifact MUST be accompanied by its full request/response record: request
   timestamp, response timestamp, server IP address contacted, request headers, response headers, and
   response status code.
-- **FR-012**: The tool MUST offer an optional, per-session segment validation mode (disabled by
-  default) which downloads referenced media segments and flags any segment whose measured size implies
-  a bitrate exceeding the declared bandwidth for its variant beyond a configurable tolerance
-  (default 10%). Comparison basis follows Apple authoring semantics: the largest implied segment
-  bitrate is checked against the variant's declared peak bandwidth (BANDWIDTH), and the average
-  implied bitrate across observed segments against the declared average bandwidth
-  (AVERAGE-BANDWIDTH) when present. Coverage when enabled is complete within the selected playlists: for on-demand
-  streams every segment of every selected playlist; for live streams every newly published segment
-  across all monitored playlists.
-- **FR-013**: The tool MUST NOT decode, decrypt, or play media content; encrypted segments are treated
-  as opaque data, and the presence of content protection is reported as an informational finding.
+- **FR-012**: *Deferred to a future feature (2026-06-13).* Segment download and declared-bandwidth
+  auditing are out of scope for this feature; no segment bodies are downloaded. The ID is retained as
+  a placeholder so requirement numbering and downstream traceability stay stable.
+- **FR-013**: The tool MUST NOT decode, decrypt, or play media content; the presence of content
+  protection (e.g., encryption declared in playlists) is reported as an informational finding.
 - **FR-014**: The tool MUST record network-level failures (timeouts, HTTP error statuses, TLS
   failures, redirect loops) as delivery findings and continue the session where possible rather than
   terminating on the first failure.
@@ -281,7 +259,7 @@ not.
   stream; it MUST NOT attempt low-latency-specific request patterns or validate low-latency-specific
   semantics (partial segments, blocking reloads, preload hints).
 - **FR-018**: After initial validation, the tool MUST let the user choose which of the discovered
-  media playlists are monitored (and, when segment mode is on, segment-checked) for the rest of the
+  media playlists are monitored for the rest of the
   session, presented as an interactive checklist with every playlist pre-selected; initial one-shot
   validation always covers all referenced playlists regardless of selection. Non-interactive
   (unattended) sessions MUST be able to bypass the prompt, either accepting the default of all
@@ -290,15 +268,15 @@ not.
 
 ### Key Entities
 
-- **Validation Session**: One run of the tool against one stream URL; owns configuration (segment mode
-  on/off, time limit, playlist selection — all by default), start/end times, all findings, and the
-  artifact folder.
+- **Validation Session**: One run of the tool against one stream URL; owns configuration (time limit,
+  playlist selection — all by default), start/end times, all findings, and the artifact folder.
 - **Playlist**: A fetched master or media playlist; carries its type, source address, declared
   properties, and validation results. Media playlists belong to the master that referenced them.
 - **Playlist Refresh**: One observation of a media playlist at a point in time during live monitoring;
   consecutive refreshes of the same playlist are compared for continuity.
-- **Segment**: A media segment referenced by a media playlist; when segment mode is on, carries its
-  measured size and the bandwidth comparison outcome.
+- **Segment** *(deferred)*: A media segment referenced by a media playlist. Segment-level
+  size/bandwidth auditing is deferred to a future feature; this feature does not download segment
+  bodies.
 - **Finding**: A single validation observation with severity, category, affected resource, observation
   time, violated rule/expectation, and human-readable description.
 - **Artifact Record**: A stored copy of one downloaded resource plus its full request/response
@@ -320,7 +298,7 @@ not.
 - **SC-004**: 100% of network requests issued during a session have a complete artifact record
   (stored resource plus full request/response metadata) in the session folder.
 - **SC-005**: An engineer can identify the root cause of common stream defects (stale playlist, broken
-  rendition reference, bandwidth mismatch) from the findings report alone — without manually opening
+  rendition reference, media sequence regression) from the findings report alone — without manually opening
   playlist files — in under 5 minutes.
 - **SC-006**: Every finding is traceable: 100% of findings identify the affected resource, observation
   time, and the violated rule or expectation.
@@ -340,13 +318,14 @@ not.
   output must be automation-friendly so sessions can run unattended (scripts, scheduled checks).
 - The provided URL carries any required access credentials (e.g., signed tokens) as-is; the tool does
   not manage authentication, refresh tokens, or DRM license exchanges.
-- Segment validation mode is off by default and enabled per session; bandwidth deviation tolerance
-  defaults to 10% and is configurable.
+- Segment validation (segment download and declared-bandwidth auditing) is **deferred to a separate
+  future feature** and is not part of this MVP.
 - Session artifacts are stored locally on the user's machine; retention and cleanup are the user's
   responsibility; nothing is uploaded anywhere. Long live sessions produce large archives (roughly
   1–2 GB and hundreds of thousands of files per 24 h of playlist monitoring) — accepted in exchange
   for a complete evidence trail.
 - One session validates one stream URL; validating multiple streams means running multiple sessions.
-- Scope boundaries: no media decoding or playback, no DRM decryption or license handling, no support
-  for non-HLS protocols (e.g., DASH), no deep Low-Latency HLS validation (detected and reported only),
-  no server-side remediation — the tool observes and reports only.
+- Scope boundaries: no media decoding or playback, no DRM decryption or license handling, no segment
+  download or bandwidth auditing (deferred to a future feature), no support for non-HLS protocols
+  (e.g., DASH), no deep Low-Latency HLS validation (detected and reported only), no server-side
+  remediation — the tool observes and reports only.
