@@ -19,6 +19,32 @@ world standard of 'good-cli-tools'. Other improvement suggestions are welcomed."
 segment bandwidth validation — is dropped from feature 001 and deferred to a separate future
 feature.)
 
+## Clarifications
+
+### Session 2026-06-13
+
+- Q: How should playlist aliases be formatted in the report body and legend? → A: Role + attributes
+  (e.g., `video-1080p`, `audio-en`, `subs-en`, `iframe-720p`); fall back to indexed `V1`/`A1`/`S1`/`I1`
+  when distinguishing attributes are unavailable; deterministic and collision-suffixed.
+- Q: During live monitoring, which report file(s) must be kept continuously up to date? → A: Both the
+  human-readable and the structured (machine-readable) reports update live and atomically; the
+  structured report's schema stays unchanged from feature 001.
+- Q: How often should the on-disk reports be rewritten during live monitoring? → A: Once per refresh
+  cycle, coalescing all playlists refreshed in that cycle into a single atomic write of both reports
+  (staleness ≤ one cycle).
+- Q: When --output is not specified, where should each session's folder be created by default? → A:
+  Under the user data directory — `~/.valistream/sessions/<session-id>/` (platform data dir on
+  non-macOS); the absolute path is printed at session start.
+- Q: Is user-adjustable output verbosity in scope, and at what level? → A: Yes — three flag-selected
+  levels: quiet (`--quiet`: findings + errors only), normal (default), and verbose (`--verbose`: adds
+  per-request/diagnostic detail). Verbosity never affects the report files or exit codes.
+- Q: Does graceful stop apply only to live monitoring, or to any in-progress session? → A: Any session
+  — a graceful interrupt cleanly finalizes both live monitoring and an in-progress one-shot/VOD
+  validation, emitting a report (clearly marked partial) covering whatever was validated so far.
+- Q: On graceful stop, how are in-flight network requests handled if they don't settle quickly? → A:
+  Cancel all in-flight requests immediately on stop and finalize with what already completed; cancelled
+  requests are recorded as aborted/incomplete. Guarantees a prompt, bounded shutdown with no hang.
+
 ## User Scenarios & Testing *(mandatory)*
 
 This feature does not add new validation capabilities; it makes the existing HLS Stream Validator
@@ -69,7 +95,7 @@ large fetch/validation bursts.
 
 An operations engineer has been monitoring a live stream and has seen enough. They press the
 interrupt key. Instead of the process dying and discarding the session, the tool announces it is
-stopping, lets in-flight work settle, flushes the artifact archive, finalizes a complete report
+stopping, cancels any in-flight requests, flushes the artifact archive, finalizes a complete report
 covering the whole monitored period, and confirms where everything was saved. If they are impatient
 and interrupt a second time, the tool exits immediately. The same clean finalization happens whether
 the session ends by completion, by graceful stop, or by an optional time limit.
@@ -85,7 +111,7 @@ second interrupt during shutdown forces an immediate exit.
 **Acceptance Scenarios**:
 
 1. **Given** an active live monitoring session, **When** the user issues a graceful stop, **Then**
-   monitoring ends cleanly, in-flight requests are allowed to settle, the archive is flushed, and a
+   monitoring ends cleanly, any in-flight requests are cancelled immediately, the archive is flushed, and a
    complete end-of-session report covering the full monitored period is produced.
 2. **Given** a graceful stop is in progress, **When** the user issues a second stop request, **Then**
    the tool terminates immediately, having warned that a second interrupt forces exit.
@@ -94,6 +120,9 @@ second interrupt during shutdown forces an immediate exit.
 4. **Given** any session-ending path (completion, graceful stop, or time limit), **When** the session
    ends, **Then** the tool reports the outcome and confirms the location of the finalized report and
    artifacts.
+5. **Given** an in-progress one-shot (VOD) validation, **When** the user issues a graceful stop before
+   it completes, **Then** the session finalizes cleanly with a report clearly marked partial, covering
+   the playlists validated up to that point.
 
 ---
 
@@ -257,20 +286,22 @@ is applied.
   requests no color; meaning MUST NOT be conveyed by color alone (severity is also labeled in text).
 - **FR-010**: Distinct logical output messages MUST be separated by blank line(s) so the output is
   easy to read rather than a dense block of text.
-- **FR-011**: The tool SHOULD let the user adjust output verbosity (e.g., a quieter mode that shows
-  only key milestones and findings, and a more verbose mode), with a sensible default; verbosity
-  settings MUST NOT affect the structured report or exit codes (FR-003).
+- **FR-011**: The tool MUST provide three output verbosity levels selected by flags — quiet
+  (`--quiet`: findings and errors only), normal (default: current activity, progress, and findings),
+  and verbose (`--verbose`: adds per-request/diagnostic detail). Verbosity settings MUST NOT affect the
+  human-readable or structured report files or the exit codes (FR-003).
 
 #### Graceful stop (US2)
 
-- **FR-012**: During live monitoring the user MUST be able to request a graceful stop (e.g., interrupt
-  signal / documented key) that ends monitoring cleanly: in-flight work is allowed to settle, the
-  artifact archive is flushed, and a complete end-of-session report covering the full monitored period
-  is produced.
+- **FR-012**: During any in-progress session — live monitoring or a one-shot validation — the user
+  MUST be able to request a graceful stop (e.g., interrupt signal / documented key) that ends the
+  session cleanly: any in-flight requests are cancelled immediately, the artifact archive is flushed, and a complete
+  report is produced — covering the full monitored period for a live session, or whatever was validated
+  so far (clearly marked partial) for a one-shot session.
 - **FR-013**: A second stop request received after a graceful stop has begun MUST force immediate
   termination; the tool MUST have informed the user that a second interrupt forces exit.
 - **FR-014**: All session-ending paths — normal on-demand completion, user graceful stop, and optional
-  time-limit expiry — MUST converge on the same clean finalization (settle in-flight work, flush
+  time-limit expiry — MUST converge on the same clean finalization (cancel in-flight requests, flush
   archive, finalize report, report exit status).
 - **FR-015**: On stop the tool MUST clearly announce that it is shutting down and, on completion,
   confirm where the finalized report and artifacts were written.
@@ -279,7 +310,9 @@ is applied.
 
 - **FR-016**: The tool MUST accept a user-specified output directory (the base under which the
   per-session folder and all artifacts/reports are created) via a command-line option; when omitted it
-  MUST use a documented default location.
+  MUST use a documented default location — the user data directory `~/.valistream/sessions/` (the
+  equivalent platform data directory on non-macOS systems), within which the per-session subfolder is
+  created.
 - **FR-017**: At session start, before fetching begins, the tool MUST print the absolute path of the
   session's output folder.
 - **FR-018**: Each session MUST write into its own uniquely named subfolder under the chosen output
@@ -292,17 +325,23 @@ is applied.
 
 #### Live-updating, prettified, aliased report (US4)
 
-- **FR-021**: During live monitoring the tool MUST keep the human-readable report file continuously up
-  to date as findings accrue and playlists refresh, so the on-disk report reflects the session's
-  current state at any time — not only at session end.
-- **FR-022**: Report file updates MUST be atomic: a reader opening the report at any moment sees a
-  complete, valid document and never a partially written one.
+- **FR-021**: During live monitoring the tool MUST keep both the human-readable and the structured
+  (machine-readable) report files continuously up to date as findings accrue and playlists refresh, so
+  the on-disk reports reflect the session's current state at any time — not only at session end. The
+  structured report's schema is unchanged from feature 001 (FR-003); only its write timing changes.
+  Reports are rewritten once per refresh cycle, coalescing all playlists refreshed in that cycle into a
+  single atomic write (bounding staleness to one cycle).
+- **FR-022**: Report file updates (both human-readable and structured) MUST be atomic: a reader
+  opening either report at any moment sees a complete, valid document and never a partially written
+  one.
 - **FR-023**: The human-readable report MUST be prettified for readability: clear sections and
   headings, findings grouped by severity and category, and aligned/tabular summaries with consistent
   formatting.
 - **FR-024**: Every playlist URL appearing in a session MUST be assigned a short, human-meaningful
   alias; the report body MUST refer to playlists by alias rather than by full URL to avoid URL
-  clutter.
+  clutter. Aliases are derived from each playlist's role and key attributes (e.g., `video-1080p`,
+  `audio-en`, `subs-en`, `iframe-720p`), falling back to indexed labels (`V1`/`A1`/`S1`/`I1`) when
+  distinguishing attributes are unavailable.
 - **FR-025**: The report MUST include a single legend mapping every alias to its full playlist URL
   (with role/attributes); every alias used anywhere in the report MUST be resolvable through this
   legend.
@@ -329,9 +368,10 @@ is applied.
   subfolder where all artifacts and reports for one session are written.
 - **Playlist Alias**: A short, stable, human-meaningful, session-unique label that stands in for a
   full playlist URL throughout the report; mapped to its URL and role/attributes in the report legend.
-- **Session Report** *(extended from feature 001)*: The human-readable report, now continuously kept
-  current during live monitoring, prettified, and expressed in terms of playlist aliases with a
-  resolving legend.
+- **Session Report** *(extended from feature 001)*: Both the human-readable and structured reports,
+  now continuously kept current during live monitoring. The human-readable form is prettified and
+  expressed in terms of playlist aliases with a resolving legend; the structured form keeps feature
+  001's schema.
 
 ## Success Criteria *(mandatory)*
 
@@ -342,15 +382,16 @@ is applied.
   appears frozen.
 - **SC-002**: At any moment during an active session, a user can tell what the tool is currently doing
   and how far along it is without waiting for the current operation to finish.
-- **SC-003**: 100% of graceful stops during live monitoring produce a complete, finalized report and a
-  fully flushed artifact archive, with clean shutdown completing within 3 seconds of in-flight work
-  settling.
+- **SC-003**: 100% of graceful stops (live or one-shot) produce a complete, finalized report and a
+  fully flushed artifact archive; in-flight requests are cancelled immediately (not awaited) and clean
+  shutdown completes within 3 seconds.
 - **SC-004**: When output is redirected to a file or pipe, the captured output contains zero terminal
   color/cursor/animation control sequences and remains fully readable.
 - **SC-005**: 100% of sessions print, at startup, a valid absolute output-folder path that exists and
   is where the report and artifacts are subsequently found.
-- **SC-006**: At all times during live monitoring, the on-disk human-readable report reflects the
-  session state no more than one refresh cycle stale, and is always a complete, openable document.
+- **SC-006**: At all times during live monitoring, the on-disk human-readable and structured reports
+  reflect the session state no more than one refresh cycle stale, and are always complete, openable
+  documents.
 - **SC-007**: The report's findings and summary sections contain zero raw playlist URLs (only
   aliases), while 100% of aliases resolve to a full URL via the legend.
 - **SC-008**: In usability testing, a user unfamiliar with the stream can locate a specific named
@@ -366,9 +407,10 @@ is applied.
   capabilities so they remain testable and substitutable, but the intent is to adopt these libraries;
   final dependency selection (and its justification against the constitution's "prefer existing
   dependencies" rule) is recorded in the plan. New runtime dependencies are expected for this feature.
-- **Default output directory**: when no output directory is specified, the tool uses the current
-  working directory as the base, creating its uniquely named per-session subfolder there — consistent
-  with feature 001's "one folder per session" behavior.
+- **Default output directory**: when no output directory is specified, the tool creates each
+  session's folder under the user data directory — `~/.valistream/sessions/<session-id>/` on macOS,
+  the equivalent platform data directory elsewhere. The absolute path is always printed at session
+  start (FR-017) so artifacts remain discoverable despite living outside the working directory.
 - **Per-session subfolder naming** is deterministic and collision-resistant (e.g., timestamp plus a
   stream identifier), so concurrent or repeated runs never collide.
 - **Graceful stop mechanism**: on interactive terminals the primary graceful-stop trigger is the
