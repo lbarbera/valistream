@@ -13,6 +13,9 @@ import Foundation
 /// monitor state — as an actor so the concurrent live-monitoring tasks can update it without data
 /// races (research §9). Status and findings flow out through the ``events`` stream for the CLI to
 /// render (FR-009). One-shot validation (US1) and live monitoring (US2) are both driven by ``run()``.
+///
+/// Monitoring loop lives in `ValidationSession+Monitoring.swift`;
+/// report writing lives in `ValidationSession+Reporting.swift`.
 public actor ValidationSession {
     // MARK: - Lets & Vars
 
@@ -23,18 +26,19 @@ public actor ValidationSession {
     /// The live event stream consumed by the presentation layer.
     public nonisolated let events: AsyncStream<SessionEvent>
 
-    private let fetcher: any StreamFetching
-    private let now: @Sendable () -> Date
-    private let sleep: @Sendable (Duration) async throws -> Void
-    private let selectPlaylists: (@Sendable ([PlaylistSelection.Candidate]) async -> [PlaylistSelection.Candidate])?
-    private let continuation: AsyncStream<SessionEvent>.Continuation
-    private let loader: PlaylistLoader
-    private let engine: RuleEngine
-    private let classifier = StreamClassifier()
-    private let continuityChecker = ContinuityChecker()
-    private let stalenessDetector = StalenessDetector()
+    // Internal — accessed from Monitoring and Reporting extension files.
+    let fetcher: any StreamFetching
+    let now: @Sendable () -> Date
+    let sleep: @Sendable (Duration) async throws -> Void
+    let selectPlaylists: (@Sendable ([PlaylistSelection.Candidate]) async -> [PlaylistSelection.Candidate])?
+    let continuation: AsyncStream<SessionEvent>.Continuation
+    let loader: PlaylistLoader
+    let engine: RuleEngine
+    let classifier = StreamClassifier()
+    let continuityChecker = ContinuityChecker()
+    let stalenessDetector = StalenessDetector()
 
-    private struct PlaylistTrack {
+    struct PlaylistTrack {
         var kind: PlaylistKind
         var role: PlaylistRole?
         var url: URL
@@ -48,16 +52,19 @@ public actor ValidationSession {
     private var monitorStates: [String: MonitorState] = [:]
     private var streamKind: StreamKind?
     private var findingCounter = 0
-    private var stopRequested = false
-    private var timeLimitExpired = false
+    var stopRequested = false
+    var timeLimitExpired = false
     public private(set) var endReason: SessionEndReason?
     public private(set) var failureMessage: String?
-    private var archive: SessionArchive?
+    var archive: SessionArchive?
     private var findingsLog: FindingsLog?
-    private var diskWatcher: DiskSpaceWatcher?
-    private var archiveStopped = false
-    private var startedAt: Date?
-    private var playlistTracks: [String: PlaylistTrack] = [:]
+    var diskWatcher: DiskSpaceWatcher?
+    var archiveStopped = false
+    var startedAt: Date?
+    var playlistTracks: [String: PlaylistTrack] = [:]
+
+    /// Stable alias map built during playlist discovery (T039, FR-026).
+    var aliasRegistry = AliasRegistry()
 
 
 
@@ -126,7 +133,7 @@ public actor ValidationSession {
 
     /// Runs the session: fetch the master (or direct media) playlist, fetch every referenced media
     /// playlist, classify the stream, and evaluate all rules (US1). For live/event streams it then
-    /// monitors the selected playlists on player-accurate cadence until stopped or the time limit
+    /// monitors the selected playlists on player-accurate cadence until stopped or the time limit.
     public func run() async {
         startedAt = now()
         if config.archiveEnabled {
@@ -174,6 +181,13 @@ public actor ValidationSession {
         var mediaLoads: [LoadedPlaylist] = []
         if case .master(let master) = rootPlaylist {
             references = loader.mediaReferences(in: master)
+            // T039: register master alias + all media playlist aliases at discovery time (FR-026).
+            aliasRegistry.alias(for: inputURL, role: .master, attributes: [:])
+            for reference in references {
+                let attrs = makeAttributes(for: reference, in: master)
+                aliasRegistry.alias(for: reference.url, role: AliasRole(from: reference.role), attributes: attrs)
+            }
+
             let activityLabel = "validating media playlists"
             for (index, reference) in references.enumerated() {
                 // T022: check stop between playlist loads so a partial report can be written.
@@ -184,7 +198,8 @@ public actor ValidationSession {
                 continuation.yield(.activity(ActivityProgress(
                     activity: activityLabel,
                     completed: index,
-                    total: references.count
+                    total: references.count,
+                    aliasInScope: aliasRegistry.alias(for: reference.url)?.alias
                 )))
                 let load = await loader.load(reference.url, role: reference.role)
                 let playlistID = "\(reference.role.rawValue)-\(index)"
@@ -196,11 +211,13 @@ public actor ValidationSession {
                 continuation.yield(.activity(ActivityProgress(
                     activity: activityLabel,
                     completed: index + 1,
-                    total: references.count
+                    total: references.count,
+                    aliasInScope: aliasRegistry.alias(for: reference.url)?.alias
                 )))
             }
-        }
-        else {
+        } else {
+            // T039: register direct media playlist alias.
+            aliasRegistry.alias(for: inputURL, role: .video, attributes: [:])
             mediaLoads.append(rootLoad)
             trackPlaylist("media", kind: .media, role: .variant, url: inputURL, selected: true, refreshCount: 1)
             continuation.yield(.activity(ActivityProgress(activity: "validating media playlist", completed: 1, total: 1)))
@@ -241,8 +258,7 @@ public actor ValidationSession {
         let selected: [PlaylistSelection.Candidate]
         if config.nonInteractive == false, let selectPlaylists {
             selected = await selectPlaylists(candidates)
-        }
-        else {
+        } else {
             selected = PlaylistSelection.resolve(candidates, patterns: config.selectionPatterns)
         }
         guard selected.isEmpty == false else {
@@ -258,11 +274,9 @@ public actor ValidationSession {
 
         if stopRequested {
             await finish(reason: .gracefulStop)
-        }
-        else if timeLimitExpired {
+        } else if timeLimitExpired {
             await finish(reason: .timeLimit)
-        }
-        else {
+        } else {
             await finish(reason: .completed)
         }
     }
@@ -312,8 +326,7 @@ public actor ValidationSession {
         return finding
     }
 
-    /// Records a violation only if an identical one has not already been recorded, so re-validating
-    /// a structurally unchanged playlist on every refresh does not flood the report.
+    /// Records a violation only if an identical one has not already been recorded.
     func recordIfNew(_ violation: RuleViolation, resource: URL, refreshIndex: Int? = nil) {
         guard recordedSignatures.contains(Self.signature(violation, resource: resource)) == false else {
             return
@@ -336,133 +349,6 @@ public actor ValidationSession {
 
 
     // MARK: - Private
-
-    private func monitor(
-        selected: [PlaylistSelection.Candidate],
-        loadedByURL: [URL: LoadedPlaylist],
-        kind: StreamKind
-    ) async {
-        let deadline = config.timeLimit.map { now().addingTimeInterval($0.seconds) }
-        await withDiscardingTaskGroup { group in
-            for candidate in selected {
-                let initial = loadedByURL[candidate.url]
-                group.addTask {
-                    await self.monitorPlaylist(candidate, initial: initial, kind: kind, deadline: deadline)
-                }
-            }
-        }
-    }
-
-    private func monitorPlaylist(
-        _ candidate: PlaylistSelection.Candidate,
-        initial: LoadedPlaylist?,
-        kind: StreamKind,
-        deadline: Date?
-    ) async {
-        guard var previous = initial?.playlist?.media else {
-            setMonitorState(candidate.id, .stopped)
-            return
-        }
-        setMonitorState(candidate.id, .monitoring)
-
-        var refreshIndex = 0
-        var lastChangedAt = now()
-        var lastChanged = true
-        var targetDuration = duration(previous.targetDuration)
-
-        while stopRequested == false {
-            if previous.hasEndList { break }
-            if let deadline, now() >= deadline {
-                timeLimitExpired = true
-                break
-            }
-
-            let scheduler = RefreshScheduler(targetDuration: targetDuration)
-            let delay = refreshIndex == 0 ? scheduler.initialDelay : scheduler.nextDelay(didChange: lastChanged)
-            do {
-                try await sleep(delay)
-            }
-            catch {
-                break
-            }
-            if stopRequested { break }
-            if let deadline, now() >= deadline {
-                timeLimitExpired = true
-                break
-            }
-
-            refreshIndex += 1
-            let load = await loader.load(candidate.url, role: candidate.role)
-            await archiveFetch(load.result, playlistID: candidate.id)
-            incrementRefreshCount(candidate.id)
-            for violation in load.deliveryViolations {
-                record(violation, resource: candidate.url, refreshIndex: refreshIndex)
-            }
-            if let media = load.playlist?.media {
-                evaluateStructural(load: load, kind: kind, refreshIndex: refreshIndex)
-                for violation in continuityChecker.check(previous: previous, current: media) {
-                    record(violation, resource: candidate.url, refreshIndex: refreshIndex)
-                }
-                let changed = media != previous
-                if changed {
-                    lastChangedAt = now()
-                    targetDuration = duration(media.targetDuration)
-                    setMonitorState(candidate.id, .monitoring)
-                }
-                else {
-                    evaluateStaleness(candidate, since: lastChangedAt, target: targetDuration, refreshIndex: refreshIndex)
-                }
-                lastChanged = changed
-                previous = media
-            }
-            else {
-                lastChanged = false
-                evaluateStaleness(candidate, since: lastChangedAt, target: targetDuration, refreshIndex: refreshIndex)
-            }
-
-            continuation.yield(.activity(ActivityProgress(
-                activity: "monitoring live",
-                completed: refreshIndex,
-                refreshes: refreshIndex,
-                aliasInScope: candidate.id
-            )))
-        }
-
-        setMonitorState(candidate.id, .stopped)
-    }
-
-    private func evaluateStructural(load: LoadedPlaylist, kind: StreamKind, refreshIndex: Int) {
-        guard let playlist = load.playlist else { return }
-        let context = RuleContext(
-            playlist: playlist,
-            tokens: load.tokens,
-            resource: load.url,
-            streamKind: kind,
-            refreshIndex: refreshIndex
-        )
-        for violation in engine.evaluate(context) {
-            recordIfNew(violation, resource: load.url, refreshIndex: refreshIndex)
-        }
-        if let media = playlist.media {
-            for violation in classifier.infoViolations(for: media, tokens: load.tokens) {
-                recordIfNew(violation, resource: load.url, refreshIndex: refreshIndex)
-            }
-        }
-    }
-
-    private func evaluateStaleness(
-        _ candidate: PlaylistSelection.Candidate,
-        since lastChangedAt: Date,
-        target: Duration,
-        refreshIndex: Int
-    ) {
-        let staleFor = Duration.seconds(now().timeIntervalSince(lastChangedAt))
-        guard let violation = stalenessDetector.violation(staleFor: staleFor, targetDuration: target) else {
-            return
-        }
-        record(violation, resource: candidate.url, refreshIndex: refreshIndex)
-        setMonitorState(candidate.id, violation.severity == .error ? .staleError : .staleWarning)
-    }
 
     private func recordSelectionEmptyNote() {
         record(
@@ -497,82 +383,6 @@ public actor ValidationSession {
         await writeReport(interruption: interruption)
     }
 
-    private func archiveFetch(_ result: FetchResult, playlistID: String) async {
-        guard let archive, !archiveStopped else { return }
-        if let watcher = diskWatcher {
-            switch try? watcher.check() {
-            case .critical(let bytes):
-                if !archiveStopped {
-                    archiveStopped = true
-                    record(RuleViolation(
-                        ruleId: "TOOL.delivery",
-                        source: .tool,
-                        severity: .error,
-                        category: .delivery,
-                        message: "Archive stopped: only \(bytes / 1_048_576) MB available on session volume.",
-                        context: ["availableBytes": .int(bytes)]
-                    ), resource: inputURL)
-                }
-                return
-            case .low(let bytes):
-                record(RuleViolation(
-                    ruleId: "TOOL.delivery",
-                    source: .tool,
-                    severity: .warning,
-                    category: .delivery,
-                    message: "Low disk space: \(bytes / 1_073_741_824) GB available on session volume.",
-                    context: ["availableBytes": .int(bytes)]
-                ), resource: inputURL)
-            default: break
-            }
-        }
-        _ = try? await archive.store(result: result, playlistID: playlistID)
-    }
-
-    private func writeReport(interruption: String?) async {
-        guard let archive else { return }
-        let artifactIndex = await archive.artifactIndex
-        let folder = archive.sessionFolder
-        let snapshot = SessionReportBuilder.SessionSnapshot(
-            id: id,
-            inputURL: inputURL,
-            startedAt: startedAt ?? now(),
-            endedAt: now(),
-            state: lifecycle.state,
-            config: config,
-            streamKind: streamKind,
-            lowLatencyDetected: findings.contains { $0.ruleId == "TOOL.low-latency" },
-            encryptionDetected: findings.contains { $0.ruleId == "TOOL.encryption" },
-            interruption: interruption
-        )
-        let playlistInfos = playlistTracks.map { id, track in
-            let stalenessEpisodes = findings.count {
-                $0.ruleId == "TOOL.staleness" && $0.severity == .error && $0.resource == track.url
-            }
-            return SessionReportBuilder.PlaylistInfo(
-                id: id,
-                kind: track.kind,
-                role: track.role,
-                url: track.url,
-                selected: track.selected,
-                excludedByChoice: !track.selected,
-                refreshCount: track.refreshCount,
-                stalenessEpisodes: stalenessEpisodes
-            )
-        }
-        let builder = SessionReportBuilder()
-        if let jsonData = try? builder.buildJSON(
-            session: snapshot,
-            playlists: playlistInfos,
-            findings: findings,
-            artifactIndex: artifactIndex
-        ) {
-            try? jsonData.write(to: folder.appending(path: "report.json"))
-        }
-        let markdown = builder.buildMarkdown(session: snapshot, playlists: playlistInfos, findings: findings)
-        try? markdown.write(to: folder.appending(path: "report.md"), atomically: true, encoding: .utf8)
-    }
-
     private func trackPlaylist(
         _ id: String,
         kind: PlaylistKind,
@@ -584,14 +394,39 @@ public actor ValidationSession {
         playlistTracks[id] = PlaylistTrack(kind: kind, role: role, url: url, selected: selected, refreshCount: refreshCount)
     }
 
-    private func incrementRefreshCount(_ playlistID: String) {
+    func incrementRefreshCount(_ playlistID: String) {
         playlistTracks[playlistID]?.refreshCount += 1
+    }
+
+    /// Builds alias-derivation attributes from the master playlist context.
+    private func makeAttributes(for reference: PlaylistReference, in master: MasterPlaylist) -> [String: String] {
+        var attrs: [String: String] = [:]
+        switch reference.role {
+        case .variant:
+            if let variant = master.variants.first(where: { $0.uri == reference.url }),
+               let res = variant.resolution {
+                attrs["RESOLUTION"] = "\(res.width)x\(res.height)"
+            }
+        case .audio, .subtitles:
+            if let rendition = master.renditions.first(where: { $0.uri == reference.url }) {
+                if let lang = rendition.language { attrs["LANGUAGE"] = lang }
+                if let name = rendition.name     { attrs["NAME"] = name }
+            } else if let name = reference.name {
+                attrs["NAME"] = name
+            }
+        case .iframe:
+            if let iframe = master.iFrameStreams.first(where: { $0.uri == reference.url }),
+               let res = iframe.resolution {
+                attrs["RESOLUTION"] = "\(res.width)x\(res.height)"
+            }
+        }
+        return attrs
     }
 
     /// Cadence baseline used when a media playlist omits `EXT-X-TARGETDURATION`.
     private static let defaultTargetDuration = Duration.seconds(6)
 
-    private func duration(_ seconds: Double?) -> Duration {
+    func duration(_ seconds: Double?) -> Duration {
         seconds.map { .seconds($0) } ?? Self.defaultTargetDuration
     }
 

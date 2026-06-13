@@ -84,4 +84,16 @@ public actor SessionArchive {
         artifactIndex.append(IndexEntry(requestId: requestId, url: result.url, bodyPath: bodyRelPath, metaPath: metaRelPath))
         return record
     }
+
+
+    /// Atomically replaces `url` with `data` using a temp-file + `FileManager.replaceItemAt`.
+    ///
+    /// Concurrent readers see either the previous complete file or the new complete file — never
+    /// a partially written document (FR-022).
+    public nonisolated func writeAtomically(_ data: Data, to url: URL) throws {
+        let dir = url.deletingLastPathComponent()
+        let tmp = dir.appendingPathComponent(".\(url.lastPathComponent).tmp")
+        try data.write(to: tmp)
+        _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+    }
 }

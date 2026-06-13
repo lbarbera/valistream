@@ -42,9 +42,21 @@ RFC8216.4.3.1.1, .4.3.4.2-BANDWIDTH, .4.3.4.2-URI, .4.3.4.1, .4.3.4.2.1, .4.3.3.
 - File was placed in wrong dir (one level up); fixed by moving to `Valistream/Valistream/ValistreamIntegrationTests/`.
 - `SessionConfig` param order: `outputDir` precedes `nonInteractive` — must match in all call sites.
 
+## US4 done (June 2026) — T030–T039 all [X]
+- `PlaylistAlias` + `AliasRegistry` in `Session/PlaylistAlias.swift`: deterministic stable aliases (`video-1080p`/`audio-en`/`subs-fr`/`iframe-720p`), indexed fallback (`V1`/`A1`/`S1`/`I1`/`M1`), dedup suffix (`video-1080p-2`).
+- `AliasRole` enum + `AliasRole(from: PlaylistRole)` bridge.
+- `SessionArchive.writeAtomically(_:to:)` `nonisolated` — temp-file + `FileManager.replaceItemAt` (FR-022).
+- `SessionReportBuilder.buildMarkdown` rewritten: header table / Summary / Legend / Findings (grouped severity→category, aliases only, no raw .m3u8 in body) / Per-playlist; `aliasRegistry: AliasRegistry = AliasRegistry()` default param preserves existing call sites.
+- `ValidationSession.swift` split to <500 lines: `ValidationSession+Monitoring.swift` (monitor/monitorPlaylist/evaluateStructural/evaluateStaleness) + `ValidationSession+Reporting.swift` (archiveFetch/writeReport). Internal (not private) access on shared properties for extensions.
+- Per-cycle atomic writes: `writeReport(interruption:)` called at end of each refresh loop in `monitorPlaylist()`.
+- Alias registration at discovery in `run()` via `makeAttributes(for:in:)` helper; `aliasInScope` threaded into `.activity` events.
+- **233 tests green** (RunAllTests, Xcode Valistream scheme).
+- T034 (`LiveReportFreshnessTests.swift`) file written to `Valistream/Valistream/Valistream/ValistreamIntegrationTests/`; needs adding to Xcode project target before it runs.
+
 ## NOT done (remaining)
-- US4 (T051-T055): SegmentAuditor + wiring + CLI --segments/--tolerance.
-- Polish (T056-T060): message-actionability audit, scale test, styleguide/unit-testing compliance pass, README, full manual quickstart.
+- T034 integration test: `LiveReportFreshnessTests.swift` needs adding to Xcode project ValistreamIntegrationTests target.
+- US5 (segment auditor, tasks T040+): SegmentAuditor + wiring + CLI --segments/--tolerance.
+- Polish: message-actionability audit, scale test, styleguide/unit-testing compliance pass, README, full manual quickstart.
 
 ## Deviations / notes
 - swift-tools-version 6.3 (template), not 6.0 as T001 text says.

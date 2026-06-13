@@ -176,53 +176,105 @@ public struct SessionReportBuilder: Sendable {
     }
 
     /// Renders a human-readable Markdown report.
+    /// Renders a prettified Markdown report with aliases, legend, and severity-grouped findings.
+    ///
+    /// Pass an `AliasRegistry` populated at session startup so the body uses stable aliases instead
+    /// of raw URLs (FR-023–026). Calling without a registry falls back to playlist IDs as labels.
     public func buildMarkdown(
         session: SessionSnapshot,
         playlists: [PlaylistInfo],
-        findings: [Finding]
+        findings: [Finding],
+        aliasRegistry: AliasRegistry = AliasRegistry()
     ) -> String {
-        var md = "# Valistream Session Report\n\n"
-        md += "**Session ID**: \(session.id)  \n"
-        md += "**Stream**: \(session.inputURL.absoluteString)  \n"
-        md += "**Started**: \(session.startedAt.formatted(.iso8601))  \n"
-        md += "**Ended**: \(session.endedAt.formatted(.iso8601))  \n"
-        md += "**State**: \(session.state.rawValue)  \n"
-        if let interruption = session.interruption {
-            md += "**Interruption**: \(interruption)  \n"
+        var md = "# valistream — Session Report\n\n"
+
+        // Header
+        if let interr = session.interruption, interr.contains("PARTIAL") {
+            md += "> **PARTIAL REPORT** — session was stopped before completion.\n\n"
         }
+        md += "| Field | Value |\n|-------|-------|\n"
+        md += "| Session ID | `\(session.id)` |\n"
+        md += "| Stream | `\(session.inputURL.absoluteString)` |\n"
+        md += "| Started | `\(session.startedAt.formatted(.iso8601))` |\n"
+        md += "| Ended | `\(session.endedAt.formatted(.iso8601))` |\n"
+        md += "| State | `\(session.state.rawValue)` |\n"
+        if let interr = session.interruption {
+            md += "| Interruption | \(interr) |\n"
+        }
+        md += "| Stream kind | `\(session.streamKind?.rawValue ?? "unknown")` |\n"
+        md += "| Low-Latency HLS | \(session.lowLatencyDetected ? "detected" : "not detected") |\n"
+        md += "| Encryption | \(session.encryptionDetected ? "detected" : "not detected") |\n"
         md += "\n"
 
-        md += "## Stream\n\n"
-        md += "- **Kind**: \(session.streamKind?.rawValue ?? "unknown")\n"
-        md += "- **Low-Latency HLS**: \(session.lowLatencyDetected ? "detected" : "not detected")\n"
-        md += "- **Encryption**: \(session.encryptionDetected ? "detected" : "not detected")\n\n"
-
-        let errors = findings.count { $0.severity == .error }
+        // Summary
+        let errors   = findings.count { $0.severity == .error }
         let warnings = findings.count { $0.severity == .warning }
-        let infos = findings.count { $0.severity == .info }
+        let infos    = findings.count { $0.severity == .info }
+        let refreshes = playlists.map { $0.refreshCount }.max() ?? 0
         md += "## Summary\n\n"
         md += "| Severity | Count |\n|----------|-------|\n"
-        md += "| error | \(errors) |\n"
-        md += "| warning | \(warnings) |\n"
-        md += "| info | \(infos) |\n\n"
+        md += "| Error | \(errors) |\n"
+        md += "| Warning | \(warnings) |\n"
+        md += "| Info | \(infos) |\n"
+        md += "\n"
+        md += "- Playlists: \(playlists.count)\n"
+        md += "- Refreshes: \(refreshes)\n\n"
 
-        md += "## Playlists\n\n"
-        for playlist in playlists {
-            let selectedLabel = playlist.selected ? "selected" : (playlist.excludedByChoice ? "excluded" : "not selected")
-            md += "- **\(playlist.id)** (\(playlist.kind.rawValue)) — \(playlist.url.absoluteString)\n"
-            md += "  - \(selectedLabel), refreshes: \(playlist.refreshCount)"
-            if playlist.stalenessEpisodes > 0 {
-                md += ", staleness episodes: \(playlist.stalenessEpisodes)"
+        // Legend
+        md += "## Legend\n\n"
+        if aliasRegistry.all.isEmpty {
+            md += "_No aliases registered._\n\n"
+        } else {
+            md += "| Alias | URL | Role |\n|-------|-----|------|\n"
+            for entry in aliasRegistry.all {
+                md += "| `\(entry.alias)` | `\(entry.url.absoluteString)` | \(entry.role.rawValue) |\n"
             }
             md += "\n"
         }
-        md += "\n"
 
-        if findings.isEmpty == false {
+        // Findings — grouped by severity then category
+        if !findings.isEmpty {
             md += "## Findings\n\n"
-            for finding in findings {
-                md += "- **[\(finding.severity.rawValue)]** `\(finding.ruleId)` \(finding.message)\n"
-                md += "  - Resource: \(finding.resource.absoluteString)\n"
+            let bySeverity = Dictionary(grouping: findings, by: { $0.severity })
+            for severity in [Finding.Severity.error, .warning, .info] {
+                guard let group = bySeverity[severity], !group.isEmpty else { continue }
+                md += "### \(severity.rawValue.capitalized)\n\n"
+                let byCategory = Dictionary(grouping: group, by: { $0.category })
+                for (category, catGroup) in byCategory.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
+                    md += "**\(category.rawValue)**\n\n"
+                    for finding in catGroup {
+                        let label = aliasRegistry.alias(for: finding.resource)?.alias
+                            ?? finding.resource.lastPathComponent
+                        md += "- `\(finding.ruleId)` \(finding.message) — `\(label)`\n"
+                    }
+                    md += "\n"
+                }
+            }
+        }
+
+        // Per-playlist
+        if !playlists.isEmpty {
+            md += "## Per-playlist\n\n"
+            let findingsByResource = Dictionary(grouping: findings, by: { $0.resource })
+            for playlist in playlists {
+                let label = aliasRegistry.alias(for: playlist.url)?.alias ?? playlist.id
+                md += "### `\(label)`\n\n"
+                let status = playlist.selected
+                    ? "selected"
+                    : (playlist.excludedByChoice ? "excluded" : "not selected")
+                md += "- Status: \(status)\n"
+                md += "- Refreshes: \(playlist.refreshCount)\n"
+                if playlist.stalenessEpisodes > 0 {
+                    md += "- Staleness episodes: \(playlist.stalenessEpisodes)\n"
+                }
+                let recent = (findingsByResource[playlist.url] ?? []).suffix(5)
+                if !recent.isEmpty {
+                    md += "- Recent findings:\n"
+                    for f in recent {
+                        md += "  - [\(f.severity.rawValue)] `\(f.ruleId)` \(f.message)\n"
+                    }
+                }
+                md += "\n"
             }
         }
 
