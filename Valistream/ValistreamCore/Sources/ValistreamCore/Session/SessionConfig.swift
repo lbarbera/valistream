@@ -27,13 +27,20 @@ public struct SessionConfig: Sendable, Equatable {
     /// Pre-supplied playlist selection patterns for non-interactive runs (FR-018).
     public var selectionPatterns: [String]?
 
+    /// Whether to archive fetched playlists and produce session reports (US3).
+    ///
+    /// Defaults to `false` so integration tests do not create filesystem artefacts unless
+    /// they explicitly opt in. The CLI sets this to `true`.
+    public var archiveEnabled: Bool
+
     public init(
         segmentMode: Bool = false,
         bandwidthTolerance: Double = 0.10,
         timeLimit: Duration? = nil,
         outputDir: URL = URL(fileURLWithPath: "./valistream-sessions"),
         nonInteractive: Bool = false,
-        selectionPatterns: [String]? = nil
+        selectionPatterns: [String]? = nil,
+        archiveEnabled: Bool = false
     ) {
         self.segmentMode = segmentMode
         self.bandwidthTolerance = bandwidthTolerance
@@ -41,6 +48,7 @@ public struct SessionConfig: Sendable, Equatable {
         self.outputDir = outputDir
         self.nonInteractive = nonInteractive
         self.selectionPatterns = selectionPatterns
+        self.archiveEnabled = archiveEnabled
     }
 }
 

@@ -34,6 +34,14 @@ public actor ValidationSession {
     private let continuityChecker = ContinuityChecker()
     private let stalenessDetector = StalenessDetector()
 
+    private struct PlaylistTrack {
+        var kind: PlaylistKind
+        var role: PlaylistRole?
+        var url: URL
+        var selected: Bool
+        var refreshCount: Int
+    }
+
     private var lifecycle = SessionLifecycle()
     private var findings: [Finding] = []
     private var recordedSignatures: Set<String> = []
@@ -41,6 +49,12 @@ public actor ValidationSession {
     private var streamKind: StreamKind?
     private var findingCounter = 0
     private var stopRequested = false
+    private var archive: SessionArchive?
+    private var findingsLog: FindingsLog?
+    private var diskWatcher: DiskSpaceWatcher?
+    private var archiveStopped = false
+    private var startedAt: Date?
+    private var playlistTracks: [String: PlaylistTrack] = [:]
 
 
 
@@ -95,6 +109,11 @@ public actor ValidationSession {
         monitorStates
     }
 
+    /// The session folder created by the archive, or `nil` when archiving is disabled.
+    public var sessionFolderURL: URL? {
+        archive?.sessionFolder
+    }
+
     /// Requests a graceful, user-initiated stop (Ctrl-C). Monitoring unwinds and the session ends in
     /// the `aborted` state with a summary still produced (FR-015). Cancel the task running ``run()``
     /// alongside this call to interrupt in-flight sleeps promptly.
@@ -107,15 +126,27 @@ public actor ValidationSession {
     /// monitors the selected playlists on player-accurate cadence until stopped or the time limit
     /// expires (US2). Findings and status flow out on ``events`` as they occur.
     public func run() async {
+        startedAt = now()
+        if config.archiveEnabled {
+            archive = try? SessionArchive(sessionID: id, outputDir: config.outputDir)
+            if let folder = archive?.sessionFolder {
+                findingsLog = try? FindingsLog(folder: folder)
+                diskWatcher = DiskSpaceWatcher(volumeURL: folder)
+            }
+        }
+
         setState(.fetchingMaster)
         let rootLoad = await loader.load(inputURL)
+        await archiveFetch(rootLoad.result, playlistID: "master")
         for violation in rootLoad.deliveryViolations {
             record(violation, resource: inputURL)
         }
         guard let rootPlaylist = rootLoad.playlist else {
+            await writeReport(interruption: nil)
             setState(.failed)
             return
         }
+        trackPlaylist("master", kind: .master, role: nil, url: inputURL, selected: true, refreshCount: 1)
 
         setState(.validatingInitial)
 
@@ -123,12 +154,19 @@ public actor ValidationSession {
         var mediaLoads: [LoadedPlaylist] = []
         if case .master(let master) = rootPlaylist {
             references = loader.mediaReferences(in: master)
-            for reference in references {
-                mediaLoads.append(await loader.load(reference.url, role: reference.role))
+            for (index, reference) in references.enumerated() {
+                let load = await loader.load(reference.url, role: reference.role)
+                let playlistID = "\(reference.role.rawValue)-\(index)"
+                await archiveFetch(load.result, playlistID: playlistID)
+                if load.playlist != nil {
+                    trackPlaylist(playlistID, kind: .media, role: reference.role, url: reference.url, selected: true, refreshCount: 1)
+                }
+                mediaLoads.append(load)
             }
         }
         else {
             mediaLoads.append(rootLoad)
+            trackPlaylist("media", kind: .media, role: .variant, url: inputURL, selected: true, refreshCount: 1)
         }
 
         let representativeMedia = mediaLoads.lazy.compactMap { $0.playlist?.media }.first
@@ -156,7 +194,7 @@ public actor ValidationSession {
 
         // VOD never monitors — it has ended by definition (FR-005).
         guard kind != .vod else {
-            finish()
+            await finish()
             return
         }
 
@@ -172,7 +210,7 @@ public actor ValidationSession {
         }
         guard selected.isEmpty == false else {
             recordSelectionEmptyNote()
-            finish()
+            await finish()
             return
         }
 
@@ -183,9 +221,10 @@ public actor ValidationSession {
 
         if stopRequested {
             setState(.aborted)
+            await writeReport(interruption: "aborted")
         }
         else {
-            finish()
+            await finish()
         }
     }
 
@@ -229,6 +268,7 @@ public actor ValidationSession {
         )
         findings.append(finding)
         recordedSignatures.insert(Self.signature(violation, resource: resource))
+        try? findingsLog?.append(finding)
         continuation.yield(.finding(finding))
         return finding
     }
@@ -258,9 +298,6 @@ public actor ValidationSession {
 
     // MARK: - Private
 
-    /// Monitors every selected playlist concurrently, one structured child task each, until all
-    /// stop (endlist, time limit, or abort). The discarding task group propagates cancellation to
-    /// every monitor so a Ctrl-C unwinds the whole session cleanly (research §9, FR-015).
     private func monitor(
         selected: [PlaylistSelection.Candidate],
         loadedByURL: [URL: LoadedPlaylist],
@@ -277,8 +314,6 @@ public actor ValidationSession {
         }
     }
 
-    /// The reload loop for one playlist: sleep on cadence, refetch, re-validate, and check
-    /// continuity + staleness against the previous observation (FR-006/FR-007).
     private func monitorPlaylist(
         _ candidate: PlaylistSelection.Candidate,
         initial: LoadedPlaylist?,
@@ -306,13 +341,15 @@ public actor ValidationSession {
                 try await sleep(delay)
             }
             catch {
-                break  // cancelled — graceful stop
+                break
             }
             if stopRequested { break }
             if let deadline, now() >= deadline { break }
 
             refreshIndex += 1
             let load = await loader.load(candidate.url, role: candidate.role)
+            await archiveFetch(load.result, playlistID: candidate.id)
+            incrementRefreshCount(candidate.id)
             for violation in load.deliveryViolations {
                 record(violation, resource: candidate.url, refreshIndex: refreshIndex)
             }
@@ -343,8 +380,6 @@ public actor ValidationSession {
         setMonitorState(candidate.id, .stopped)
     }
 
-    /// Re-evaluates structural rules and info findings for a refresh, recording only findings not
-    /// already seen for this resource.
     private func evaluateStructural(load: LoadedPlaylist, kind: StreamKind, refreshIndex: Int) {
         guard let playlist = load.playlist else { return }
         let context = RuleContext(
@@ -364,8 +399,6 @@ public actor ValidationSession {
         }
     }
 
-    /// Records a staleness finding and updates the playlist's monitor state when it has gone
-    /// unrefreshed past the liveness thresholds (FR-007).
     private func evaluateStaleness(
         _ candidate: PlaylistSelection.Candidate,
         since lastChangedAt: Date,
@@ -400,9 +433,101 @@ public actor ValidationSession {
         }
     }
 
-    private func finish() {
+    private func finish() async {
         setState(.finishing)
+        await writeReport(interruption: nil)
         setState(.completed)
+    }
+
+    private func archiveFetch(_ result: FetchResult, playlistID: String) async {
+        guard let archive, !archiveStopped else { return }
+        if let watcher = diskWatcher {
+            switch try? watcher.check() {
+            case .critical(let bytes):
+                if !archiveStopped {
+                    archiveStopped = true
+                    record(RuleViolation(
+                        ruleId: "TOOL.delivery",
+                        source: .tool,
+                        severity: .error,
+                        category: .delivery,
+                        message: "Archive stopped: only \(bytes / 1_048_576) MB available on session volume.",
+                        context: ["availableBytes": .int(bytes)]
+                    ), resource: inputURL)
+                }
+                return
+            case .low(let bytes):
+                record(RuleViolation(
+                    ruleId: "TOOL.delivery",
+                    source: .tool,
+                    severity: .warning,
+                    category: .delivery,
+                    message: "Low disk space: \(bytes / 1_073_741_824) GB available on session volume.",
+                    context: ["availableBytes": .int(bytes)]
+                ), resource: inputURL)
+            default: break
+            }
+        }
+        _ = try? await archive.store(result: result, playlistID: playlistID)
+    }
+
+    private func writeReport(interruption: String?) async {
+        guard let archive else { return }
+        let artifactIndex = await archive.artifactIndex
+        let folder = archive.sessionFolder
+        let snapshot = SessionReportBuilder.SessionSnapshot(
+            id: id,
+            inputURL: inputURL,
+            startedAt: startedAt ?? now(),
+            endedAt: now(),
+            state: lifecycle.state,
+            config: config,
+            streamKind: streamKind,
+            lowLatencyDetected: findings.contains { $0.ruleId == "TOOL.low-latency" },
+            encryptionDetected: findings.contains { $0.ruleId == "TOOL.encryption" },
+            interruption: interruption
+        )
+        let playlistInfos = playlistTracks.map { id, track in
+            let stalenessEpisodes = findings.count {
+                $0.ruleId == "TOOL.staleness" && $0.severity == .error && $0.resource == track.url
+            }
+            return SessionReportBuilder.PlaylistInfo(
+                id: id,
+                kind: track.kind,
+                role: track.role,
+                url: track.url,
+                selected: track.selected,
+                excludedByChoice: !track.selected,
+                refreshCount: track.refreshCount,
+                stalenessEpisodes: stalenessEpisodes
+            )
+        }
+        let builder = SessionReportBuilder()
+        if let jsonData = try? builder.buildJSON(
+            session: snapshot,
+            playlists: playlistInfos,
+            findings: findings,
+            artifactIndex: artifactIndex
+        ) {
+            try? jsonData.write(to: folder.appending(path: "report.json"))
+        }
+        let markdown = builder.buildMarkdown(session: snapshot, playlists: playlistInfos, findings: findings)
+        try? markdown.write(to: folder.appending(path: "report.md"), atomically: true, encoding: .utf8)
+    }
+
+    private func trackPlaylist(
+        _ id: String,
+        kind: PlaylistKind,
+        role: PlaylistRole?,
+        url: URL,
+        selected: Bool,
+        refreshCount: Int
+    ) {
+        playlistTracks[id] = PlaylistTrack(kind: kind, role: role, url: url, selected: selected, refreshCount: refreshCount)
+    }
+
+    private func incrementRefreshCount(_ playlistID: String) {
+        playlistTracks[playlistID]?.refreshCount += 1
     }
 
     /// Cadence baseline used when a media playlist omits `EXT-X-TARGETDURATION`.

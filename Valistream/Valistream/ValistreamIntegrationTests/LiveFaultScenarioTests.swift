@@ -13,7 +13,7 @@ import ValistreamCore
 struct LiveFaultScenarioTests {
     private let media = URL(string: "https://ex.com/live.m3u8")!
 
-    @Test("a stalling playlist warns then escalates to an error")
+    @Test("a stalling playlist warns then escalates to an error", .timeLimit(.minutes(1)))
     func stallingPlaylistWarnsThenErrors() async {
         let harness = LiveSessionHarness(input: media)
         // Only the initial window is ever served; the playlist never changes again.
@@ -35,7 +35,7 @@ struct LiveFaultScenarioTests {
         await harness.abortAndFinish()
     }
 
-    @Test("a media-sequence regression is reported as a continuity error")
+    @Test("a media-sequence regression is reported as a continuity error", .timeLimit(.minutes(1)))
     func sequenceRegressionIsContinuityError() async {
         let harness = LiveSessionHarness(input: media)
         harness.fetcher.timeline(media, [
@@ -52,7 +52,7 @@ struct LiveFaultScenarioTests {
         await harness.abortAndFinish()
     }
 
-    @Test("an inserted discontinuity is info and monitoring continues")
+    @Test("an inserted discontinuity is info and monitoring continues", .timeLimit(.minutes(1)))
     func discontinuityInsertionIsInfoAndContinues() async {
         let harness = LiveSessionHarness(input: media)
         harness.fetcher.timeline(media, [
@@ -74,7 +74,7 @@ struct LiveFaultScenarioTests {
         await harness.abortAndFinish()
     }
 
-    @Test("the session completes when its time limit expires")
+    @Test("the session completes when its time limit expires", .timeLimit(.minutes(1)))
     func timeLimitExpiryCompletesSession() async {
         let harness = LiveSessionHarness(
             input: media,

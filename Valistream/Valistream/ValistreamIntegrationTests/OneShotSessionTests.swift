@@ -114,6 +114,7 @@ private enum Fixtures {
     #EXT-X-PART-INF:PART-TARGET=0.33
     #EXTINF:4.0,
     seg0.ts
+    #EXT-X-ENDLIST
     """
 
     static let encryptedMedia = """

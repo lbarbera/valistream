@@ -21,7 +21,7 @@ CLI split into Xcode project tool target `Valistream` (sources `Valistream/Valis
   - `ValidationSession` extended: added `sleep` closure param (default Task.sleep) + `selectPlaylists` provider closure param; `monitor()` via `withDiscardingTaskGroup`, `monitorPlaylist()` reload loop (sleep→fetch→re-validate `recordIfNew` dedup by signature→continuity→staleness→monitorState), `abort()`→aborted / `requestStop()`, time-limit deadline via now(), empty-selection note `TOOL.selection-empty`. New `SessionEvent.monitorStateChanged`.
   - CLI (T040): StatusRenderer handles monitorStateChanged + `--json` status objects to stdout; SIGINT/SIGTERM via DispatchSource → `abort()` + cancel runTask → exit 130 (state==.aborted); `--all` wiring; `PlaylistChecklist.swift` termios checkbox + numbered fallback + select-all when no TTY.
   - Tests: unit RefreshSchedulerTests/ContinuityCheckerTests/StalenessDetectorTests (Monitoring/), PlaylistSelectionTests (Session/). Integration `LiveMonitoringTests` + `LiveFaultScenarioTests` (+ Support `LiveSessionHarness` driving ManualClock deterministically via sleeperCount, `LivePlaylists` builder; added `sleeperCount`/`elapsedSeconds` to ManualClock).
-- **74 unit tests green** (`swift test`); **integration green** via Xcode (90 total tests in Valistream.xctestplan).
+- **125 unit tests green** (`swift test`); **140 total tests green** via Xcode (Valistream.xctestplan) — includes 5 new InterruptedSessionTests integration tests.
 
 ## New rule IDs (US2)
 TOOL.continuity.media-sequence, .head-removal, .segment-stability, .discontinuity-inserted (info), .discontinuity-sequence; TOOL.staleness; TOOL.selection-empty (info).
@@ -29,8 +29,20 @@ TOOL.continuity.media-sequence, .head-removal, .segment-stability, .discontinuit
 ## Rule IDs (US1, fixture/report consistency)
 RFC8216.4.3.1.1, .4.3.4.2-BANDWIDTH, .4.3.4.2-URI, .4.3.4.1, .4.3.4.2.1, .4.3.3.1, .4.3.3.1-DURATION, .4.3.2.1, .4.3.3-DUPLICATE; APPLE.codecs/.average-bandwidth/.resolution/.independent-segments/.iframe-playlists/.variant-ladder/.target-duration; TOOL.delivery/.low-latency/.encryption.
 
+## US3 done (June 2026) — T041-T050 all [X]
+- `SessionArchive` actor: session folder `<outputDir>/<sessionID>/`, per-playlist `playlists/<id>/NNNNNN.m3u8` + `.meta.json` sidecars, `artifactIndex` accumulates across stores.
+- `FindingsLog` (@unchecked Sendable class, JSONL append-only, `0x0A` per entry — durable on abort).
+- `DiskSpaceWatcher` struct, injected capacity provider, warn ≤5 GiB / stop ≤500 MiB.
+- `SessionReportBuilder`: `buildJSON` (schema v1, schemaVersion/session/stream/playlists/findings/summary/artifactIndex) + `buildMarkdown`.
+- `ValidationSession` wired: archive/log/watcher created when `config.archiveEnabled`; every fetch archived (master as "master", media refs as "\(role)-\(i)", direct media as "media"); `record()` appends to JSONL; `setState(.aborted)` called BEFORE `writeReport` (bug fix — snapshot captures correct state); `finish()` async writes report.
+- `SessionConfig.archiveEnabled` defaults `false` — existing tests unaffected.
+- CLI sets `archiveEnabled: true`, prints `sessionFolderURL` path.
+- New unit tests: SessionArchiveTests (8), FindingsLogTests (5), DiskSpaceWatcherTests (10), SessionReportTests (12).
+- New integration tests: InterruptedSessionTests (5) — all with `.timeLimit(.minutes(1))`.
+- File was placed in wrong dir (one level up); fixed by moving to `Valistream/Valistream/ValistreamIntegrationTests/`.
+- `SessionConfig` param order: `outputDir` precedes `nonInteractive` — must match in all call sites.
+
 ## NOT done (remaining)
-- US3 (T041-T050): SessionArchive, FindingsLog (JSONL), DiskSpaceWatcher, SessionReportBuilder, archive-into-lifecycle wiring. ValidationSession does NOT archive yet; --output-dir accepted but unused. CLI summary passes sessionFolder=nil.
 - US4 (T051-T055): SegmentAuditor + wiring + CLI --segments/--tolerance.
 - Polish (T056-T060): message-actionability audit, scale test, styleguide/unit-testing compliance pass, README, full manual quickstart.
 

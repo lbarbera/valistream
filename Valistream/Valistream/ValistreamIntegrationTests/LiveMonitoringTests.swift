@@ -13,7 +13,7 @@ import ValistreamCore
 struct LiveMonitoringTests {
     private let media = URL(string: "https://ex.com/live.m3u8")!
 
-    @Test("a healthy live playlist refreshes on cadence with no error or warning findings")
+    @Test("a healthy live playlist refreshes on cadence with no error or warning findings", .timeLimit(.minutes(1)))
     func healthyLiveRefreshesCleanly() async {
         let harness = LiveSessionHarness(input: media)
         harness.fetcher.timeline(media, [
@@ -43,7 +43,7 @@ struct LiveMonitoringTests {
         #expect(findings.count(where: { $0.severity == .warning }) == 0)
     }
 
-    @Test("a graceful stop ends the session in the aborted state with a summary")
+    @Test("a graceful stop ends the session in the aborted state with a summary", .timeLimit(.minutes(1)))
     func gracefulStopProducesSummary() async {
         let harness = LiveSessionHarness(input: media)
         harness.fetcher.timeline(media, [

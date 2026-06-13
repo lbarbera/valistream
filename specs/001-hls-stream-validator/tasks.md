@@ -257,37 +257,37 @@ scenario 6)
 
 ### Tests for User Story 3 (write FIRST, ensure they FAIL) ⚠️
 
-- [ ] T041 [P] [US3] Write archive layout/writer tests (folder naming, `playlists/<id>/NNNNNN.m3u8`
+- [X] T041 [P] [US3] Write archive layout/writer tests (folder naming, `playlists/<id>/NNNNNN.m3u8`
       zero-padded refresh bodies, byte-exact bodies, sidecar `.meta.json` field completeness per
       FR-011 incl. redirect chain) in `Tests/ValistreamCoreTests/Archive/SessionArchiveTests.swift`
-- [ ] T042 [P] [US3] Write findings-log tests (JSONL append-only, parseable after simulated abort
+- [X] T042 [P] [US3] Write findings-log tests (JSONL append-only, parseable after simulated abort
       mid-write) in `Tests/ValistreamCoreTests/Archive/FindingsLogTests.swift`
-- [ ] T043 [P] [US3] Write report tests: `report.json` validates against
+- [X] T043 [P] [US3] Write report tests: `report.json` validates against
       `specs/001-hls-stream-validator/contracts/session-report.schema.json` (bundle schema as test
       resource), `report.md` renders all sections, monitored/excluded playlists recorded (FR-016/
       FR-018) in `Tests/ValistreamCoreTests/Session/SessionReportTests.swift`
-- [ ] T044 [P] [US3] Write disk-space watcher tests (injected capacity provider: warn < 5 GB
+- [X] T044 [P] [US3] Write disk-space watcher tests (injected capacity provider: warn < 5 GB
       finding, clean stop < 500 MB — research.md §11) in
       `Tests/ValistreamCoreTests/Archive/DiskSpaceWatcherTests.swift`
-- [ ] T045 [P] [US3] Write integration test: session interrupted mid-monitoring preserves all
+- [X] T045 [P] [US3] Write integration test: session interrupted mid-monitoring preserves all
       artifacts collected so far + final interrupted-marked report (US3 acceptance 3) in
       `Tests/ValistreamIntegrationTests/InterruptedSessionTests.swift`
 
 ### Implementation for User Story 3
 
-- [ ] T046 [US3] Implement `SessionArchive` writer (session folder layout per data-model.md, serial
+- [X] T046 [US3] Implement `SessionArchive` writer (session folder layout per data-model.md, serial
       write executor, verbatim bodies, `session.json` state snapshots) in
       `Sources/ValistreamCore/Archive/SessionArchive.swift`
-- [ ] T047 [P] [US3] Implement `FindingsLog` JSONL appender in
+- [X] T047 [P] [US3] Implement `FindingsLog` JSONL appender in
       `Sources/ValistreamCore/Archive/FindingsLog.swift`
-- [ ] T048 [P] [US3] Implement `DiskSpaceWatcher` (`volumeAvailableCapacityForImportantUsage`,
+- [X] T048 [P] [US3] Implement `DiskSpaceWatcher` (`volumeAvailableCapacityForImportantUsage`,
       thresholds, periodic check on archive flush) in
       `Sources/ValistreamCore/Archive/DiskSpaceWatcher.swift`
-- [ ] T049 [US3] Implement session report builder (`report.json` per schema incl. cadence adherence
+- [X] T049 [US3] Implement session report builder (`report.json` per schema incl. cadence adherence
       + staleness episodes + artifact index; human `report.md`; monitoring-derived fields
       `cadenceAdherence`/`stalenessEpisodes` are null for one-shot sessions without US2 monitoring)
       in `Sources/ValistreamCore/Session/SessionReportBuilder.swift`
-- [ ] T050 [US3] Wire archive into session lifecycle: every fetch archived (SC-004), findings
+- [X] T050 [US3] Wire archive into session lifecycle: every fetch archived (SC-004), findings
       streamed to JSONL, reports written on completed/aborted/failed, storage failure → alert +
       clean stop (edge case), CLI prints session folder path at end. Verify quickstart scenario 6
       manually.

@@ -71,7 +71,8 @@ struct ValistreamCommand: AsyncParsableCommand {
             timeLimit: limit.flatMap(Self.parseDuration),
             outputDir: URL(fileURLWithPath: outputDir),
             nonInteractive: nonInteractive || all || !isStdoutTTY(),
-            selectionPatterns: select.map { $0.split(separator: ",").map(String.init) }
+            selectionPatterns: select.map { $0.split(separator: ",").map(String.init) },
+            archiveEnabled: true
         )
 
         // On an interactive terminal, prompt with the checklist; otherwise the session resolves the
@@ -104,7 +105,8 @@ struct ValistreamCommand: AsyncParsableCommand {
 
         let findings = await session.recordedFindings
         let state = await session.state
-        renderer.renderSummary(findings: findings, state: state, sessionFolder: nil)
+        let sessionFolder = await session.sessionFolderURL?.path(percentEncoded: false)
+        renderer.renderSummary(findings: findings, state: state, sessionFolder: sessionFolder)
 
         // Graceful interrupt (SIGINT/SIGTERM) — summary still produced (FR-015).
         if state == .aborted {
