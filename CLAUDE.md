@@ -1,14 +1,16 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/001-hls-stream-validator/plan.md`
+`specs/002-performance-ux/plan.md`
 
-Active feature: 001-hls-stream-validator (HLS Stream Validator)
-- Spec: specs/001-hls-stream-validator/spec.md
-- Plan: specs/001-hls-stream-validator/plan.md
+Active feature: 002-performance-ux (Performance and UX)
+- Spec: specs/002-performance-ux/spec.md
+- Plan: specs/002-performance-ux/plan.md
 - Design: data-model.md, contracts/, research.md, quickstart.md (same directory)
-- Stack: Swift 6 (strict concurrency), SwiftPM; deps: swift-argument-parser only
-- Build/test: `swift build` / `swift test` — pipe through `xcsift` for log analysis
+- Builds on: 001-hls-stream-validator (validation rules, report schema, exit codes are FROZEN)
+- Stack: Swift 6 (strict concurrency), SwiftPM + Xcode workspace. Core `ValistreamCore` stays
+  dependency-free; CLI target deps: swift-argument-parser + Rainbow (color) + Promptberry (prompts)
+- Build/test: xcode-tools `BuildProject`; `swift test` (unit) — pipe through `xcsift` for log analysis
 
 Implementation rules (binding):
 - Code style: follow `styleguide.md` (repo root)
