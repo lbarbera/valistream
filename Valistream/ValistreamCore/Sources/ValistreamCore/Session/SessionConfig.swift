@@ -18,8 +18,9 @@ public struct SessionConfig: Sendable, Equatable {
     /// Optional live-session time cap (FR-015).
     public var timeLimit: Duration?
 
-    /// Parent directory for session folders (FR-010).
-    public var outputDir: URL
+    /// Parent directory for session folders (FR-010). `nil` selects the platform default base
+    /// (`OutputLocation.defaultBase()` — `~/.valistream/sessions/` on macOS).
+    public var outputDir: URL?
 
     /// Suppresses the interactive checklist prompt (FR-018).
     public var nonInteractive: Bool
@@ -42,7 +43,7 @@ public struct SessionConfig: Sendable, Equatable {
         segmentMode: Bool = false,
         bandwidthTolerance: Double = 0.10,
         timeLimit: Duration? = nil,
-        outputDir: URL = URL(fileURLWithPath: "./valistream-sessions"),
+        outputDir: URL? = nil,
         nonInteractive: Bool = false,
         selectionPatterns: [String]? = nil,
         archiveEnabled: Bool = false,

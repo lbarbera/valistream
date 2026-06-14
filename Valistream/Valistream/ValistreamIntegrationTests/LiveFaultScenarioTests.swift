@@ -30,7 +30,8 @@ struct LiveFaultScenarioTests {
         let monitorStates = await harness.session.playlistMonitorStates
         #expect(findings.contains { $0.ruleId == "TOOL.staleness" && $0.severity == .warning })
         #expect(findings.contains { $0.ruleId == "TOOL.staleness" && $0.severity == .error })
-        #expect(monitorStates["media"] == .staleError)
+        // Monitor state is keyed by the presentation ID (FR-013-ID); direct media resolves to `video_1`.
+        #expect(monitorStates["video_1"] == .staleError)
 
         await harness.abortAndFinish()
     }
@@ -69,7 +70,7 @@ struct LiveFaultScenarioTests {
         let monitorStates = await harness.session.playlistMonitorStates
         #expect(findings.contains { $0.ruleId == "TOOL.continuity.discontinuity-inserted" && $0.severity == .info })
         #expect(findings.contains { $0.severity == .error } == false)
-        #expect(monitorStates["media"] == .monitoring)
+        #expect(monitorStates["video_1"] == .monitoring)
 
         await harness.abortAndFinish()
     }

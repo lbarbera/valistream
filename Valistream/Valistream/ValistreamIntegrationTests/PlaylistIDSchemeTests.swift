@@ -216,6 +216,46 @@ struct PlaylistIDSchemeTests {
         #expect(before == "1080p_avc1")
     }
 
+    // MARK: - Regression: live monitoring lines use the presentation ID, not the candidate ID
+
+    /// Bug `live-status-wrong-id`: monitoring status lines (monitor-state changes, per-refresh
+    /// `OK`/finding lines, traces) leaked the internal selection candidate ID (`variant-0`,
+    /// `audio-5`) instead of the presentation ID shown by the roster/legend (`1080p_avc1`).
+    @Test("live monitoring keys events on the presentation ID, never the candidate ID", .timeLimit(.minutes(1)))
+    func monitoringUsesPresentationIDNotCandidateID() async throws {
+        let masterURL = URL(string: "https://example.com/live/master.m3u8")!
+        let videoURL = URL(string: "https://example.com/live/video-1080p-avc1.m3u8")!
+        let config = SessionConfig(nonInteractive: true)
+        let harness = LiveSessionHarness(input: masterURL, config: config)
+
+        let liveMaster = """
+            #EXTM3U
+            #EXT-X-VERSION:7
+            #EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080,CODECS="avc1.640028"
+            video-1080p-avc1.m3u8
+            """
+        harness.fetcher.timeline(masterURL, [
+            .init(at: .zero, reply: .body(liveMaster)),
+        ])
+        harness.fetcher.timeline(videoURL, [
+            .init(at: .zero, reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
+            .init(at: .seconds(6), reply: .body(LivePlaylists.window(mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
+        ])
+
+        harness.start()
+        await harness.step(by: 6, refreshing: videoURL)
+
+        let monitorStates = await harness.session.playlistMonitorStates
+        await harness.abortAndFinish()
+
+        // The monitored variant must be keyed by its presentation ID — the same ID the roster,
+        // legend, and report use — not the internal candidate ID `variant-0`.
+        #expect(monitorStates["1080p_avc1"] != nil,
+                "Monitor state must be keyed by the presentation ID; got \(monitorStates)")
+        #expect(monitorStates["variant-0"] == nil,
+                "Monitor state must not be keyed by the internal candidate ID")
+    }
+
     // MARK: - T030: Legend present in Markdown report
 
     @Test("Markdown report legend maps every ID to its full URL")

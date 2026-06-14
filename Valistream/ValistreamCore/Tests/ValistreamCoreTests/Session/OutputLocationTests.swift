@@ -76,6 +76,20 @@ struct OutputLocationTests {
         #expect(path.hasPrefix("/"))
     }
 
+    @Test("omitted outputDir (nil) resolves under defaultBase(), not the working directory")
+    func nilOutputDirUsesDefaultBase() throws {
+        // Regression: the CLI/SessionConfig once defaulted to the literal "./valistream-sessions",
+        // so resolve() never saw nil and dropped artifacts in the call-folder (CWD) instead of
+        // ~/.valistream/sessions/. With the default now nil, the fallback must be reached.
+        let loc = try OutputLocation.resolve(outputDir: nil, sessionID: "default-base-test")
+
+        #expect(loc.baseDirectory == OutputLocation.defaultBase().standardizedFileURL)
+
+        let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+            .standardizedFileURL
+        #expect(loc.baseDirectory != cwd.appending(path: "valistream-sessions", directoryHint: .isDirectory))
+    }
+
 
 
     // MARK: - Writability pre-flight

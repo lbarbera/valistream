@@ -338,7 +338,7 @@ public struct SessionReportBuilder: Sendable {
             bandwidthTolerance: session.config.bandwidthTolerance,
             timeLimitSeconds: session.config.timeLimit.map { $0.seconds },
             nonInteractive: session.config.nonInteractive,
-            outputDir: session.config.outputDir.path(percentEncoded: false)
+            outputDir: (session.config.outputDir ?? OutputLocation.defaultBase()).path(percentEncoded: false)
         )
 
         let sessionPayload = SessionPayload(

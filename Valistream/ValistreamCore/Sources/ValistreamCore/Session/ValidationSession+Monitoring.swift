@@ -31,11 +31,18 @@ extension ValidationSession {
         kind: StreamKind,
         deadline: Date?
     ) async {
+        // Live status, evidence, archive paths, and traces must all show the same presentation
+        // ID used by the roster, legend, and report (FR-013-ID). Resolve it once from the registry
+        // (populated at discovery in `run()`); fall back to the internal candidate ID only when the
+        // playlist was never registered. Without this, monitoring lines leak the candidate ID
+        // (`variant-0`, `audio-5`) instead of the presentation ID (`1080p_avc1`, `audio_en`).
+        let presentationID = aliasRegistry.alias(for: candidate.url)?.alias ?? candidate.id
+
         guard var previous = initial?.playlist?.media else {
-            setMonitorState(candidate.id, .stopped)
+            setMonitorState(presentationID, .stopped)
             return
         }
-        setMonitorState(candidate.id, .monitoring)
+        setMonitorState(presentationID, .monitoring)
 
         var refreshIndex = 0
         var lastChangedAt = now()
@@ -52,7 +59,7 @@ extension ValidationSession {
             // Verbose: emit refresh-scheduled trace before sleeping (FR-015b).
             if config.verboseEvents {
                 let delaySecs = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
-                continuation.yield(.trace(.refreshScheduled(playlistID: candidate.id, delaySeconds: delaySecs)))
+                continuation.yield(.trace(.refreshScheduled(playlistID: presentationID, delaySeconds: delaySecs)))
             }
 
             do {
@@ -65,7 +72,7 @@ extension ValidationSession {
             if deadlinePassed(deadline) { break }
 
             refreshIndex += 1
-            let snapshotLabel = SnapshotID.label(id: candidate.id, index: refreshIndex)
+            let snapshotLabel = SnapshotID.label(id: presentationID, index: refreshIndex)
 
             // Verbose: fetch intent trace (FR-015b).
             if config.verboseEvents {
@@ -88,11 +95,11 @@ extension ValidationSession {
                 )))
             }
 
-            await archiveFetch(load.result, playlistID: candidate.id)
+            await archiveFetch(load.result, playlistID: presentationID)
 
             // Verbose: continuity comparison trace (emitted before checking for violations).
             if config.verboseEvents, load.playlist?.media != nil {
-                let olderLabel = SnapshotID.label(id: candidate.id, index: refreshIndex - 1)
+                let olderLabel = SnapshotID.label(id: presentationID, index: refreshIndex - 1)
                 continuation.yield(.trace(.continuityCompare(
                     olderSnapshotID: olderLabel,
                     newerSnapshotID: snapshotLabel
@@ -101,11 +108,11 @@ extension ValidationSession {
 
             // Verbose: stored trace (after archiveFetch which writes the file).
             if config.verboseEvents, load.result.outcome == .success {
-                let archivePath = "playlists/\(candidate.id)/\(snapshotLabel).m3u8"
+                let archivePath = "playlists/\(presentationID)/\(snapshotLabel).m3u8"
                 continuation.yield(.trace(.stored(snapshotID: snapshotLabel, archivePath: archivePath)))
             }
 
-            incrementRefreshCount(candidate.id)
+            incrementRefreshCount(presentationID)
             for violation in load.deliveryViolations {
                 record(violation, resource: candidate.url, refreshIndex: refreshIndex)
             }
@@ -123,7 +130,7 @@ extension ValidationSession {
                 if changed {
                     lastChangedAt = now()
                     targetDuration = duration(media.targetDuration)
-                    setMonitorState(candidate.id, .monitoring)
+                    setMonitorState(presentationID, .monitoring)
                 }
                 previous = media
 
@@ -154,19 +161,18 @@ extension ValidationSession {
             let errorsThisRefresh = recordedFindings.suffix(findingsThisRefresh).count { $0.severity == .error }
             let warnsThisRefresh = recordedFindings.suffix(findingsThisRefresh).count { $0.severity == .warning }
             continuation.yield(.refreshCompleted(
-                playlistID: candidate.id,
+                playlistID: presentationID,
                 index: refreshIndex,
                 errors: errorsThisRefresh,
                 warnings: warnsThisRefresh
             ))
 
-            let alias = aliasRegistry.alias(for: candidate.url)?.alias ?? candidate.id
             let totalRefreshes = sessionRefreshTotal
             continuation.yield(.activity(ActivityProgress(
                 activity: "monitoring live",
                 completed: refreshIndex,
                 refreshes: refreshIndex,
-                aliasInScope: alias,
+                aliasInScope: presentationID,
                 sessionRefreshTotal: totalRefreshes
             )))
 
@@ -174,7 +180,7 @@ extension ValidationSession {
             await writeReport(interruption: nil)
         }
 
-        setMonitorState(candidate.id, .stopped)
+        setMonitorState(presentationID, .stopped)
     }
 
     /// Reports whether the monitoring deadline has passed, flagging `timeLimitExpired` if so.
@@ -216,6 +222,9 @@ extension ValidationSession {
             return
         }
         record(violation, resource: candidate.url, refreshIndex: refreshIndex)
-        setMonitorState(candidate.id, violation.severity == .error ? .staleError : .staleWarning)
+        // Match the presentation ID used by every other monitoring event (FR-013-ID), not the
+        // internal candidate ID.
+        let presentationID = aliasRegistry.alias(for: candidate.url)?.alias ?? candidate.id
+        setMonitorState(presentationID, violation.severity == .error ? .staleError : .staleWarning)
     }
 }

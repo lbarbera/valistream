@@ -100,8 +100,8 @@ struct ValistreamCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Never prompt; process all renditions without interaction.")
     var nonInteractive = false
 
-    @Option(name: .long, help: "Parent directory for session folders. The archive arrives with a later increment.")
-    var outputDir: String = "./valistream-sessions"
+    @Option(name: .long, help: "Parent directory for session folders. Defaults to ~/.valistream/sessions/.")
+    var outputDir: String?
 
     @Flag(name: .long, help: "Machine output: findings as JSON Lines on stdout.")
     var json = false
@@ -166,7 +166,7 @@ struct ValistreamCommand: AsyncParsableCommand {
             segmentMode: segments,
             bandwidthTolerance: tolerance / 100,
             timeLimit: limit.flatMap(Self.parseDuration),
-            outputDir: URL(fileURLWithPath: outputDir),
+            outputDir: outputDir.map { URL(fileURLWithPath: $0) },
             nonInteractive: nonInteractive || !tty,
             selectionPatterns: preselectPatterns,
             archiveEnabled: true,

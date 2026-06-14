@@ -31,7 +31,9 @@ struct LiveMonitoringTests {
         let classification = await harness.session.classification
         let monitorStates = await harness.session.playlistMonitorStates
         #expect(classification == .live)
-        #expect(monitorStates["media"] == .monitoring)
+        // Monitor state is keyed by the presentation ID (FR-013-ID), the same ID the roster
+        // shows. A direct media playlist with no RESOLUTION/CODECS resolves to `video_1`.
+        #expect(monitorStates["video_1"] == .monitoring)
         #expect(harness.fetcher.fetchCount(for: media) >= 4)
 
         await harness.abortAndFinish()
@@ -58,6 +60,6 @@ struct LiveMonitoringTests {
         let state = await harness.session.state
         let monitorStates = await harness.session.playlistMonitorStates
         #expect(state == .completed)
-        #expect(monitorStates["media"] == .stopped)
+        #expect(monitorStates["video_1"] == .stopped)
     }
 }
