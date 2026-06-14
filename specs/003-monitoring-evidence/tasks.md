@@ -159,55 +159,55 @@ adds ≥5 trace categories absent at normal.
 
 ### Tests for User Story 2 ⚠️ (write first, MUST FAIL before impl)
 
-- [ ] T014 [P] [US2] Monotonic-counter unit tests in
+- [X] T014 [P] [US2] Monotonic-counter unit tests in
       `ValistreamCore/Tests/ValistreamCoreTests/SessionMonotonicCounterTests.swift`: session-wide
       `sessionRefreshTotal` increments once per completed refresh across interleaved playlists; never
       decreases; equals total refreshes performed. (FR-013, SC-004)
-- [ ] T015 [P] [US2] `TraceFormatter` wording tests in
+- [X] T015 [P] [US2] `TraceFormatter` wording tests in
       `ValistreamCore/Tests/ValistreamCoreTests/TraceFormatterTests.swift`: each `TraceEvent` variant →
       its catalog category-prefixed, **ID-based** line (fetch intent/result, per-playlist + per-rule
       validation incl. OK, stored, refresh cadence/drift, compare, rendition lifecycle); **no raw URL**.
       (FR-015b, SC-003/005)
-- [ ] T016 [US2] Integration roster + zero-URL test in
+- [X] T016 [US2] Integration roster + zero-URL test in
       `Valistream/ValistreamIntegrationTests/RosterAndZeroURLTests.swift`: roster prints each ID → full
       URL + role **before** fetching; after the roster **no** full URL appears in the terminal body at
       normal **and** `--verbose`. (FR-011/012, SC-003)
-- [ ] T017 [US2] Integration heartbeat-monotonicity-under-stray-input test in
+- [X] T017 [US2] Integration heartbeat-monotonicity-under-stray-input test in
       `Valistream/ValistreamIntegrationTests/HeartbeatMonotonicTests.swift` (ManualClock + input seam):
       inject ≥20 stray Enter presses; displayed count is monotonic non-decreasing, equals refreshes
       performed, status region uncorrupted. (FR-013/014, SC-004)
-- [ ] T018 [US2] Integration verbose-vs-normal distinctness test in
+- [X] T018 [US2] Integration verbose-vs-normal distinctness test in
       `Valistream/ValistreamIntegrationTests/VerboseDistinctnessTests.swift`: `--verbose` line-set adds
       ≥5 categories absent at normal; all verbose lines ID-based. (FR-015, SC-005)
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Extend `SessionEvent` + `ActivityProgress` in
+- [X] T019 [US2] Extend `SessionEvent` + `ActivityProgress` in
       `ValistreamCore/Sources/ValistreamCore/Session/SessionConfig.swift` with **additive** cases
       `.rosterReady([RosterEntry])`, `.refreshCompleted(playlistID:index:errors:warnings:)`,
       `.trace(TraceEvent)`, plus `ActivityProgress.sessionRefreshTotal: Int` (+ `RosterEntry`,
       `TraceEvent` types). No JSON/exit impact. (FR-011/013/015a/b, D7/D9)
-- [ ] T020 [US2] Maintain the session-wide monotonic refresh counter under the session actor in
+- [X] T020 [US2] Maintain the session-wide monotonic refresh counter under the session actor in
       `ValistreamCore/Sources/ValistreamCore/Session/ValidationSession+Monitoring.swift`: increment once
       per completed refresh across all playlists; carry it in the activity event. (FR-013, SC-004, D7)
-- [ ] T021 [US2] Emit `.rosterReady`, `.refreshCompleted`, and verbose `.trace` events from
+- [X] T021 [US2] Emit `.rosterReady`, `.refreshCompleted`, and verbose `.trace` events from
       `ValistreamCore/Sources/ValistreamCore/Session/ValidationSession+Reporting.swift` at the right
       points (roster before fetch; per-refresh roll-up; fetch/validate/store/refresh/compare/lifecycle
       traces). (FR-011/015b)
-- [ ] T022 [P] [US2] Add pure `TraceFormatter` in
+- [X] T022 [P] [US2] Add pure `TraceFormatter` in
       `ValistreamCore/Sources/ValistreamCore/Output/TraceFormatter.swift`: render each `TraceEvent` to a
       category-prefixed, ID-based line per the catalog. (FR-015b)
-- [ ] T023 [US2] Update heartbeat wording in
+- [X] T023 [US2] Update heartbeat wording in
       `ValistreamCore/Sources/ValistreamCore/Output/ProgressFormatter.swift` to
       `<id> · refresh <sessionRefreshTotal> · <elapsed>` and descriptive, ID-based action wording.
       (FR-010/013)
-- [ ] T024 [US2] Update `Valistream/Valistream/ProgressView.swift` to display the monotonic
+- [X] T024 [US2] Update `Valistream/Valistream/ProgressView.swift` to display the monotonic
       `sessionRefreshTotal` + current ID in the in-place region. (FR-013)
-- [ ] T025 [US2] Add CLI-only `Valistream/Valistream/LiveInputGuard.swift`: on TTY + live monitoring,
+- [X] T025 [US2] Add CLI-only `Valistream/Valistream/LiveInputGuard.swift`: on TTY + live monitoring,
       clear `ECHO`/`ICANON` via `termios` on entry and **restore** original termios on every exit path
       (normal, time-limit, graceful stop, force-quit) via `defer`; gated on TTY so piped runs emit no
       control bytes. Reuses the `PlaylistChecklist` termios pattern. (FR-014, SC-004, D8)
-- [ ] T026 [US2] Wire roster, per-refresh status line, and verbose trace gating into
+- [X] T026 [US2] Wire roster, per-refresh status line, and verbose trace gating into
       `Valistream/Valistream/StatusRenderer.swift`: render `.rosterReady` (normal+), `.refreshCompleted`
       as `<id>_<n> — OK` / `<id>_<n> — x WARN, y ERROR` with findings indented beneath, and `.trace`
       only at `--verbose`; enforce tier supersets (quiet ⊆ normal ⊆ verbose). Keep `--json` compact.

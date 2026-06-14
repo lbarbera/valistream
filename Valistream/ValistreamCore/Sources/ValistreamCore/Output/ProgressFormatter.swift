@@ -16,6 +16,16 @@
 public enum ProgressFormatter {
 
     public static func format(_ progress: ActivityProgress) -> String {
+        // US2 heartbeat: use session-wide monotonic total + current ID (FR-010/013, D7).
+        if let sessionTotal = progress.sessionRefreshTotal, let alias = progress.aliasInScope {
+            return "\(alias) · refresh \(sessionTotal) · ongoing"
+        }
+        if let sessionTotal = progress.sessionRefreshTotal {
+            return "refresh \(sessionTotal)"
+        }
+        if let refreshes = progress.refreshes, let alias = progress.aliasInScope {
+            return "\(alias) · \(refreshes == 1 ? "1 refresh" : "\(refreshes) refreshes") done"
+        }
         if let refreshes = progress.refreshes {
             let noun = refreshes == 1 ? "refresh" : "refreshes"
             return "\(progress.activity) — \(refreshes) \(noun) done"

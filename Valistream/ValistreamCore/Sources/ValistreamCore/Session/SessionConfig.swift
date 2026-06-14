@@ -33,6 +33,11 @@ public struct SessionConfig: Sendable, Equatable {
     /// they explicitly opt in. The CLI sets this to `true`.
     public var archiveEnabled: Bool
 
+    /// Whether to emit verbose `.trace` events for detailed action tracing (US2, D9).
+    ///
+    /// Defaults to `false`; the CLI sets this to `true` when `--verbose` is passed.
+    public var verboseEvents: Bool
+
     public init(
         segmentMode: Bool = false,
         bandwidthTolerance: Double = 0.10,
@@ -40,7 +45,8 @@ public struct SessionConfig: Sendable, Equatable {
         outputDir: URL = URL(fileURLWithPath: "./valistream-sessions"),
         nonInteractive: Bool = false,
         selectionPatterns: [String]? = nil,
-        archiveEnabled: Bool = false
+        archiveEnabled: Bool = false,
+        verboseEvents: Bool = false
     ) {
         self.segmentMode = segmentMode
         self.bandwidthTolerance = bandwidthTolerance
@@ -49,7 +55,74 @@ public struct SessionConfig: Sendable, Equatable {
         self.nonInteractive = nonInteractive
         self.selectionPatterns = selectionPatterns
         self.archiveEnabled = archiveEnabled
+        self.verboseEvents = verboseEvents
     }
+}
+
+/// One entry in the start-of-session roster (FR-011, SC-003).
+///
+/// Contains the short presentation ID, the full source URL, and a human-readable role label.
+/// The roster is the **only** place full URLs are printed; the body uses IDs only.
+public struct RosterEntry: Sendable, Equatable {
+    /// The short, human-readable playlist ID (e.g. `master`, `1080p_avc1`, `audio_en`).
+    public let id: String
+
+    /// The full source URL — printed once in the roster, never repeated in the body.
+    public let url: URL
+
+    /// The human-readable role label (e.g. `master`, `video`, `audio`).
+    public let role: String
+
+    /// Optional additional attributes string (e.g. resolution, codec, language).
+    public let attributes: String?
+
+    public init(id: String, url: URL, role: String, attributes: String? = nil) {
+        self.id = id
+        self.url = url
+        self.role = role
+        self.attributes = attributes
+    }
+}
+
+/// A verbose-tier trace event covering one action the session performed (D9, FR-015b).
+///
+/// All cases carry only playlist IDs and snapshot labels — never raw URLs — preserving SC-003.
+public enum TraceEvent: Sendable, Equatable {
+    /// About to request a playlist snapshot.
+    case fetchIntent(snapshotID: String)
+
+    /// A playlist fetch completed with an HTTP response.
+    case fetchResult(snapshotID: String, httpStatus: Int, durationMs: Int, bytes: Int)
+
+    /// A playlist snapshot passed all validation rules.
+    case validationPlaylistOK(snapshotID: String)
+
+    /// A playlist snapshot produced at least one finding.
+    case validationPlaylistFail(snapshotID: String, errorCount: Int, warnCount: Int)
+
+    /// A single validation rule passed for a snapshot.
+    case validationRuleOK(snapshotID: String, ruleID: String)
+
+    /// A single validation rule fired a finding for a snapshot.
+    case validationRuleFail(snapshotID: String, ruleID: String)
+
+    /// A snapshot body was written to the archive.
+    case stored(snapshotID: String, archivePath: String)
+
+    /// The refresh scheduler decided the next sleep delay.
+    case refreshScheduled(playlistID: String, delaySeconds: Double)
+
+    /// The actual refresh arrived with a measurable cadence drift.
+    case refreshDrift(playlistID: String, driftSeconds: Double)
+
+    /// A continuity comparison was performed between two consecutive snapshots.
+    case continuityCompare(olderSnapshotID: String, newerSnapshotID: String)
+
+    /// A new rendition appeared in the stream.
+    case renditionAdded(playlistID: String)
+
+    /// A previously seen rendition disappeared from the stream.
+    case renditionDropped(playlistID: String)
 }
 
 /// An event emitted on the session's live event stream, consumed by the CLI (FR-009).
@@ -61,6 +134,17 @@ public enum SessionEvent: Sendable {
     case activity(ActivityProgress)
     /// Fired once after the output directory is resolved and writable-verified, before any fetch (FR-017).
     case sessionFolderResolved(URL)
+
+    // MARK: - US2 additions (additive — no JSON/exit impact)
+
+    /// Fired once after all playlist IDs are assigned and before the first fetch (FR-011).
+    case rosterReady([RosterEntry])
+
+    /// Fired once per completed refresh cycle for a playlist (normal+ tier, FR-015a).
+    case refreshCompleted(playlistID: String, index: Int, errors: Int, warnings: Int)
+
+    /// A verbose-tier action trace (emitted only when `SessionConfig.verboseEvents == true`, D9).
+    case trace(TraceEvent)
 }
 
 /// Why a session finalized — drives report labeling and the CLI shutdown notice (US2, data-model).
@@ -80,6 +164,12 @@ public struct ActivityProgress: Sendable {
     public let total: Int?
     public let refreshes: Int?
     public let aliasInScope: String?
+    /// Session-wide monotonic refresh counter (D7, FR-013, SC-004).
+    ///
+    /// Incremented once per completed refresh across **all** playlists in the session.
+    /// Never decreases. `nil` when no refresh has completed yet or when the event is
+    /// not refresh-related (e.g. initial scan activity).
+    public let sessionRefreshTotal: Int?
 
 
 
@@ -90,12 +180,14 @@ public struct ActivityProgress: Sendable {
         completed: Int,
         total: Int? = nil,
         refreshes: Int? = nil,
-        aliasInScope: String? = nil
+        aliasInScope: String? = nil,
+        sessionRefreshTotal: Int? = nil
     ) {
         self.activity = activity
         self.completed = completed
         self.total = total
         self.refreshes = refreshes
         self.aliasInScope = aliasInScope
+        self.sessionRefreshTotal = sessionRefreshTotal
     }
 }

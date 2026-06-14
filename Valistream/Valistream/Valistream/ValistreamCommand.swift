@@ -95,7 +95,8 @@ struct ValistreamCommand: AsyncParsableCommand {
             outputDir: URL(fileURLWithPath: outputDir),
             nonInteractive: nonInteractive || all || !tty,
             selectionPatterns: select.map { $0.split(separator: ",").map(String.init) },
-            archiveEnabled: true
+            archiveEnabled: true,
+            verboseEvents: verbose
         )
 
         // FR-028: skip the prompt when non-TTY, --all/--non-interactive, or --select supplied.
@@ -121,6 +122,12 @@ struct ValistreamCommand: AsyncParsableCommand {
         let runTask = Task { await session.run() }
         let signalSources = Self.installSignalHandlers(session: session, runTask: runTask)
         defer { signalSources.forEach { $0.cancel() } }
+
+        // US2/T025: suppress terminal echo during live monitoring to prevent stray keystrokes
+        // from corrupting the in-place heartbeat region (D8, FR-014, SC-004).
+        let inputGuard = LiveInputGuard(isTTY: tty)
+        let savedTermios = inputGuard.activate()
+        defer { inputGuard.deactivate(savedTermios) }
 
         // T017: dedicated render task — processes events concurrently with the session (FR-002).
         let renderTask = Task {

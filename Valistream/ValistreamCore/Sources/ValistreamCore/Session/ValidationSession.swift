@@ -65,6 +65,12 @@ public actor ValidationSession {
     var startedAt: Date?
     var playlistTracks: [String: PlaylistTrack] = [:]
 
+    /// Session-wide monotonic refresh counter (D7, FR-013, SC-004).
+    ///
+    /// Incremented once per completed refresh across **all** playlists in the session.
+    /// Lives on the actor so all `monitorPlaylist` tasks can increment it safely without awaiting.
+    private(set) var sessionRefreshTotal = 0
+
     /// Stable alias map built during playlist discovery (T039, FR-026).
     var aliasRegistry = AliasRegistry()
 
@@ -190,6 +196,9 @@ public actor ValidationSession {
                 aliasRegistry.alias(for: reference.url, role: AliasRole(from: reference.role), attributes: attrs)
             }
 
+            // US2/T021: emit roster after all IDs are assigned, before any media fetch (FR-011).
+            emitRoster(masterURL: inputURL, references: references)
+
             let activityLabel = "validating media playlists"
             for (index, reference) in references.enumerated() {
                 // T022: check stop between playlist loads so a partial report can be written.
@@ -217,11 +226,14 @@ public actor ValidationSession {
                     aliasInScope: aliasRegistry.alias(for: reference.url)?.alias
                 )))
             }
-        } else {
+        }
+        else {
             // T039: register direct media playlist alias.
             aliasRegistry.alias(for: inputURL, role: .video, attributes: [:])
             mediaLoads.append(rootLoad)
             trackPlaylist("media", kind: .media, role: .variant, url: inputURL, selected: true, refreshCount: 1)
+            // US2/T021: emit single-playlist roster before any monitor fetch.
+            emitRoster(masterURL: nil, references: [])
             continuation.yield(.activity(ActivityProgress(activity: "validating media playlist", completed: 1, total: 1)))
         }
 
@@ -406,6 +418,7 @@ public actor ValidationSession {
 
     func incrementRefreshCount(_ playlistID: String) {
         playlistTracks[playlistID]?.refreshCount += 1
+        sessionRefreshTotal += 1
     }
 
     /// Builds alias-derivation attributes from the master playlist context.
@@ -455,5 +468,27 @@ public actor ValidationSession {
         )
         let random = String(UInt32.random(in: 0..<0xFFFF), radix: 16)
         return "\(stamp)-\(random)"
+    }
+
+    /// Emits a `.rosterReady` event listing all discovered playlist IDs, URLs, and roles (FR-011, US2).
+    ///
+    /// Called once after all aliases are registered and before any media fetch, so the roster
+    /// appears before any body output and full URLs never repeat afterward (SC-003).
+    private func emitRoster(masterURL: URL?, references: [PlaylistReference]) {
+        var entries: [RosterEntry] = []
+        if let masterURL {
+            let id = aliasRegistry.alias(for: masterURL)?.alias ?? "master"
+            entries.append(RosterEntry(id: id, url: masterURL, role: "master"))
+        }
+        for reference in references {
+            let id = aliasRegistry.alias(for: reference.url)?.alias ?? reference.role.rawValue
+            entries.append(RosterEntry(id: id, url: reference.url, role: reference.role.rawValue))
+        }
+        if entries.isEmpty {
+            // Direct media: the single playlist is the input URL
+            let id = aliasRegistry.alias(for: inputURL)?.alias ?? "media"
+            entries.append(RosterEntry(id: id, url: inputURL, role: "video"))
+        }
+        continuation.yield(.rosterReady(entries))
     }
 }

@@ -25,22 +25,41 @@ struct StatusRenderer: Sendable {
     // MARK: - Internal
 
     /// Renders a single session event. Skips `.activity` because ``ProgressView`` owns it.
+    /// Renders a single session event. Skips `.activity` because ``ProgressView`` owns it.
+    ///
+    /// Tier supersets (quiet ⊆ normal ⊆ verbose) are enforced here per the Output message catalog.
     func render(_ event: SessionEvent) {
         switch event {
         case .stateChanged(let state):
             renderEventStatus(["type": "status", "state": state.rawValue], human: "• \(state.rawValue)")
+
         case .streamClassified(let kind):
             renderEventStatus(
                 ["type": "status", "classification": kind.rawValue],
                 human: "• stream classified as \(kind.rawValue)"
             )
+
         case .monitorStateChanged(let playlistID, let state):
             renderEventStatus(
                 ["type": "status", "playlist": playlistID, "monitorState": state.rawValue],
                 human: "• [\(playlistID)] \(state.rawValue)"
             )
+
         case .finding(let finding, let evidence):
             renderFinding(finding, evidence: evidence)
+
+        case .rosterReady(let entries):
+            // Normal+ tier: print the roster before any fetch (FR-011, SC-003).
+            renderRoster(entries)
+
+        case .refreshCompleted(let playlistID, let index, let errors, let warnings):
+            // Normal+ tier: per-refresh status line (FR-015a).
+            renderRefreshCompleted(playlistID: playlistID, index: index, errors: errors, warnings: warnings)
+
+        case .trace(let traceEvent):
+            // Verbose-only tier (D9, FR-015b, SC-005).
+            renderTrace(traceEvent)
+
         case .activity, .sessionFolderResolved:
             break
         }
@@ -81,6 +100,40 @@ struct StatusRenderer: Sendable {
         else {
             writer.writeFinding(severity: finding.severity, message: finding.message)
         }
+    }
+
+    /// Prints the start-of-session roster: each ID → full URL + role. The roster is the only
+    /// place full URLs appear; the body uses IDs only (FR-011/012, SC-003). Normal+ tier.
+    private func renderRoster(_ entries: [RosterEntry]) {
+        renderStatus("Playlists:")
+        for entry in entries {
+            var line = "  \(entry.id) → \(entry.url.absoluteString) [\(entry.role)]"
+            if let attributes = entry.attributes, attributes.isEmpty == false {
+                line += " \(attributes)"
+            }
+            renderStatus(line)
+        }
+    }
+
+    /// Prints the per-refresh roll-up status line as `<id>_<n> — OK` or
+    /// `<id>_<n> — x WARN, y ERROR` (FR-015a). Normal+ tier.
+    private func renderRefreshCompleted(playlistID: String, index: Int, errors: Int, warnings: Int) {
+        let snapshot = SnapshotID.label(id: playlistID, index: index)
+        guard errors > 0 || warnings > 0 else {
+            renderStatus("\(snapshot) — OK")
+            return
+        }
+        var parts: [String] = []
+        if warnings > 0 { parts.append("\(warnings) WARN") }
+        if errors > 0 { parts.append("\(errors) ERROR") }
+        renderStatus("\(snapshot) — \(parts.joined(separator: ", "))")
+    }
+
+    /// Prints a verbose-tier action trace line via the shared catalog formatter (FR-015b, D9).
+    /// Gated to `--verbose` so quiet/normal tiers never see it (tier supersets, SC-005).
+    private func renderTrace(_ event: TraceEvent) {
+        guard writer.mode.verbosity == .verbose else { return }
+        renderStatus(TraceFormatter.format(event))
     }
 
     private func renderEventStatus(_ object: [String: String], human: String) {

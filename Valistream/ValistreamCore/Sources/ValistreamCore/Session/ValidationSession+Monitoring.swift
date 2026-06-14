@@ -48,22 +48,72 @@ extension ValidationSession {
 
             let scheduler = RefreshScheduler(targetDuration: targetDuration)
             let delay = refreshIndex == 0 ? scheduler.initialDelay : scheduler.nextDelay(didChange: lastChanged)
+
+            // Verbose: emit refresh-scheduled trace before sleeping (FR-015b).
+            if config.verboseEvents {
+                let delaySecs = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
+                continuation.yield(.trace(.refreshScheduled(playlistID: candidate.id, delaySeconds: delaySecs)))
+            }
+
             do {
                 try await sleep(delay)
-            } catch {
+            }
+            catch {
                 break
             }
             if stopRequested { break }
             if deadlinePassed(deadline) { break }
 
             refreshIndex += 1
+            let snapshotLabel = SnapshotID.label(id: candidate.id, index: refreshIndex)
+
+            // Verbose: fetch intent trace (FR-015b).
+            if config.verboseEvents {
+                continuation.yield(.trace(.fetchIntent(snapshotID: snapshotLabel)))
+            }
+
+            let fetchStart = now()
             let load = await loader.load(candidate.url, role: candidate.role)
+
+            // Verbose: fetch result trace.
+            if config.verboseEvents {
+                let durationMs = Int(now().timeIntervalSince(fetchStart) * 1_000)
+                let httpStatus = load.result.metadata.httpStatus ?? 0
+                let bytes = load.result.body.count
+                continuation.yield(.trace(.fetchResult(
+                    snapshotID: snapshotLabel,
+                    httpStatus: httpStatus,
+                    durationMs: durationMs,
+                    bytes: bytes
+                )))
+            }
+
             await archiveFetch(load.result, playlistID: candidate.id)
+
+            // Verbose: continuity comparison trace (emitted before checking for violations).
+            if config.verboseEvents, load.playlist?.media != nil {
+                let olderLabel = SnapshotID.label(id: candidate.id, index: refreshIndex - 1)
+                continuation.yield(.trace(.continuityCompare(
+                    olderSnapshotID: olderLabel,
+                    newerSnapshotID: snapshotLabel
+                )))
+            }
+
+            // Verbose: stored trace (after archiveFetch which writes the file).
+            if config.verboseEvents, load.result.outcome == .success {
+                let archivePath = "playlists/\(candidate.id)/\(snapshotLabel).m3u8"
+                continuation.yield(.trace(.stored(snapshotID: snapshotLabel, archivePath: archivePath)))
+            }
+
             incrementRefreshCount(candidate.id)
             for violation in load.deliveryViolations {
                 record(violation, resource: candidate.url, refreshIndex: refreshIndex)
             }
             var changed = false
+
+            // Count findings produced by this refresh cycle (for .refreshCompleted).
+            let findingsBefore = recordedFindings.count
+
             if let media = load.playlist?.media {
                 evaluateStructural(load: load, kind: kind, refreshIndex: refreshIndex)
                 for violation in continuityChecker.check(previous: previous, current: media) {
@@ -76,18 +126,48 @@ extension ValidationSession {
                     setMonitorState(candidate.id, .monitoring)
                 }
                 previous = media
+
+                // Verbose: per-playlist validation outcome.
+                if config.verboseEvents {
+                    let newFindings = recordedFindings.count - findingsBefore
+                    if newFindings == 0 {
+                        continuation.yield(.trace(.validationPlaylistOK(snapshotID: snapshotLabel)))
+                    }
+                    else {
+                        let errors = recordedFindings.suffix(newFindings).count { $0.severity == .error }
+                        let warns = recordedFindings.suffix(newFindings).count { $0.severity == .warning }
+                        continuation.yield(.trace(.validationPlaylistFail(
+                            snapshotID: snapshotLabel,
+                            errorCount: errors,
+                            warnCount: warns
+                        )))
+                    }
+                }
             }
             lastChanged = changed
             if changed == false {
                 evaluateStaleness(candidate, since: lastChangedAt, target: targetDuration, refreshIndex: refreshIndex)
             }
 
+            // Emit per-refresh status line (normal+ tier, FR-015a, T021).
+            let findingsThisRefresh = recordedFindings.count - findingsBefore
+            let errorsThisRefresh = recordedFindings.suffix(findingsThisRefresh).count { $0.severity == .error }
+            let warnsThisRefresh = recordedFindings.suffix(findingsThisRefresh).count { $0.severity == .warning }
+            continuation.yield(.refreshCompleted(
+                playlistID: candidate.id,
+                index: refreshIndex,
+                errors: errorsThisRefresh,
+                warnings: warnsThisRefresh
+            ))
+
             let alias = aliasRegistry.alias(for: candidate.url)?.alias ?? candidate.id
+            let totalRefreshes = sessionRefreshTotal
             continuation.yield(.activity(ActivityProgress(
                 activity: "monitoring live",
                 completed: refreshIndex,
                 refreshes: refreshIndex,
-                aliasInScope: alias
+                aliasInScope: alias,
+                sessionRefreshTotal: totalRefreshes
             )))
 
             // T038: write both reports atomically after each refresh cycle (FR-021, FR-022).
