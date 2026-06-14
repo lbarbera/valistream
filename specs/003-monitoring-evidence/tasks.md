@@ -230,23 +230,23 @@ re-run yields identical IDs.
 
 ### Tests for User Story 3 ⚠️ (write first, MUST FAIL before impl)
 
-- [ ] T027 [P] [US3] Role-based ID unit tests in
+- [X] T027 [P] [US3] Role-based ID unit tests in
       `ValistreamCore/Tests/ValistreamCoreTests/PlaylistAliasRoleTests.swift`: `audio_<slug(LANGUAGE)>`;
       same-language collision appends `_<slug(NAME)>` (`audio_en_commentary`); `NAME` alone when
       `LANGUAGE` absent; `subs_<slug(LANGUAGE|NAME)>`; `iframe_<height>p`; role+ordinal fallback when
       attributes missing. (FR-018/020, SC-006)
-- [ ] T028 [US3] Integration ID-differentiation/determinism test in
+- [X] T028 [US3] Integration ID-differentiation/determinism test in
       `Valistream/ValistreamIntegrationTests/PlaylistIDSchemeTests.swift`: master=`master`; video IDs
       `<height>p_<codecs>` distinct for codec-only and resolution-only differences; role IDs distinct;
       re-run identical; ID stable across refreshes; legend present in the report. (SC-006/007)
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Add role-based audio/subtitle/I-frame derivation to
+- [X] T029 [US3] Add role-based audio/subtitle/I-frame derivation to
       `ValistreamCore/Sources/ValistreamCore/Session/PlaylistAlias.swift`: `audio_<slug(LANGUAGE)>` with
       `NAME` disambiguation, `subs_<…>`, `iframe_<height>p`, role+ordinal fallback — same dedup/charset
       guarantees as the Foundational rework. (FR-018/020)
-- [ ] T030 [US3] Render the report **legend** (each ID → full URL + role/attributes) in the new ID
+- [X] T030 [US3] Render the report **legend** (each ID → full URL + role/attributes) in the new ID
       scheme in `ValistreamCore/Sources/ValistreamCore/Session/SessionReportBuilder.swift`; legend is the
       only place URLs appear in the report. (FR-012, SC-003)
 

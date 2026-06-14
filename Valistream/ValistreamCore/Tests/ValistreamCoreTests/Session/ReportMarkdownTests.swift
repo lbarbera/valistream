@@ -196,7 +196,7 @@ struct ReportMarkdownTests {
         let legend = String(md[legendRange.lowerBound...])
         #expect(legend.contains("1080p_avc1"))
         #expect(legend.contains(videoURL.absoluteString))
-        #expect(legend.contains("audio_1"))
+        #expect(legend.contains("audio_en"))
         #expect(legend.contains(audioURL.absoluteString))
     }
 

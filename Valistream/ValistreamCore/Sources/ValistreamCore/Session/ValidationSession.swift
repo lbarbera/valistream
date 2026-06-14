@@ -426,9 +426,13 @@ public actor ValidationSession {
         var attrs: [String: String] = [:]
         switch reference.role {
         case .variant:
-            if let variant = master.variants.first(where: { $0.uri == reference.url }),
-               let res = variant.resolution {
-                attrs["RESOLUTION"] = "\(res.width)x\(res.height)"
+            if let variant = master.variants.first(where: { $0.uri == reference.url }) {
+                if let res = variant.resolution {
+                    attrs["RESOLUTION"] = "\(res.width)x\(res.height)"
+                }
+                if let codecs = variant.attributes["CODECS"] {
+                    attrs["CODECS"] = codecs
+                }
             }
         case .audio, .subtitles:
             if let rendition = master.renditions.first(where: { $0.uri == reference.url }) {

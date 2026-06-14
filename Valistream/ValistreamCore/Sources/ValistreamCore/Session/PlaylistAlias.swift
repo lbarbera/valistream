@@ -52,7 +52,15 @@ public struct AliasRegistry: Sendable {
     ) -> PlaylistAlias {
         if let existing = byURL[url] { return existing }
         let base = preferredAlias(role: role, attributes: attributes) ?? fallbackAlias(role: role)
-        let candidate = deduplicate(base)
+        // Try base first; on collision use name-based disambiguation before numeric suffix.
+        let candidate: String
+        if usedAliases.contains(base) {
+            let disambiguated = nameDisambiguated(base: base, role: role, attributes: attributes)
+            candidate = deduplicate(disambiguated)
+        }
+        else {
+            candidate = base
+        }
         usedAliases.insert(candidate)
         let entry = PlaylistAlias(alias: candidate, url: url, role: role, attributes: attributes)
         byURL[url] = entry
@@ -79,7 +87,13 @@ public struct AliasRegistry: Sendable {
             "master"
         case .video:
             videoAlias(attributes: attributes)
-        case .audio, .subtitles, .iframe, .unknown:
+        case .audio:
+            audioOrSubsAlias(prefix: "audio", attributes: attributes)
+        case .subtitles:
+            audioOrSubsAlias(prefix: "subs", attributes: attributes)
+        case .iframe:
+            iframeAlias(attributes: attributes)
+        case .unknown:
             nil
         }
     }
@@ -103,6 +117,56 @@ public struct AliasRegistry: Sendable {
         guard codecFields.allSatisfy({ $0.isEmpty == false }) else { return nil }
 
         return "\(height)p_\(codecFields.joined(separator: "-"))"
+    }
+
+    /// Derives `audio_<slug(LANGUAGE)>` or `subs_<slug(LANGUAGE)>`.
+    /// When `LANGUAGE` is absent, falls back to `<prefix>_<slug(NAME)>`.
+    /// Returns `nil` when neither attribute is present (triggers role+ordinal fallback).
+    private func audioOrSubsAlias(prefix: String, attributes: [String: String]) -> String? {
+        if let language = attributes["LANGUAGE"], language.isEmpty == false {
+            let langSlug = slug(language)
+            guard langSlug.isEmpty == false else { return nil }
+            return "\(prefix)_\(langSlug)"
+        }
+        if let name = attributes["NAME"], name.isEmpty == false {
+            let nameSlug = slug(name)
+            guard nameSlug.isEmpty == false else { return nil }
+            return "\(prefix)_\(nameSlug)"
+        }
+        return nil
+    }
+
+    /// Derives `iframe_<height>p` from `RESOLUTION`.
+    /// Returns `nil` when `RESOLUTION` is absent (triggers role+ordinal fallback).
+    private func iframeAlias(attributes: [String: String]) -> String? {
+        guard
+            let resolution = attributes["RESOLUTION"],
+            let height = resolution
+                .split(whereSeparator: { $0 == "x" || $0 == "X" })
+                .last?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            height.isEmpty == false,
+            height.allSatisfy({ $0.isASCII && $0.isNumber })
+        else { return nil }
+        return "iframe_\(height)p"
+    }
+
+    /// Returns a name-disambiguated candidate when the base preferred alias is already taken.
+    /// For audio/subs: appends `_<slug(NAME)>` when NAME is present.
+    /// For other roles: returns the base unchanged (numeric suffix path applies).
+    private func nameDisambiguated(base: String, role: AliasRole, attributes: [String: String]) -> String {
+        switch role {
+        case .audio, .subtitles:
+            if let name = attributes["NAME"], name.isEmpty == false {
+                let nameSlug = slug(name)
+                if nameSlug.isEmpty == false {
+                    return "\(base)_\(nameSlug)"
+                }
+            }
+            return base
+        default:
+            return base
+        }
     }
 
     private mutating func fallbackAlias(role: AliasRole) -> String {

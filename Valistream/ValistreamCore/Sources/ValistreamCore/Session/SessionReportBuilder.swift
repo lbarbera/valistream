@@ -228,9 +228,12 @@ public struct SessionReportBuilder: Sendable {
             md += "_No aliases registered._\n\n"
         }
         else {
-            md += "| Alias | URL | Role |\n|-------|-----|------|\n"
+            md += "| ID | URL | Role | Attributes |\n|----|-----|------|------------|\n"
             for entry in aliasRegistry.all {
-                md += "| `\(entry.alias)` | `\(entry.url.absoluteString)` | \(entry.role.rawValue) |\n"
+                let attrs = entry.attributes.isEmpty
+                    ? "—"
+                    : entry.attributes.keys.sorted().map { "\($0)=\(entry.attributes[$0]!)" }.joined(separator: ", ")
+                md += "| `\(entry.alias)` | `\(entry.url.absoluteString)` | \(entry.role.rawValue) | \(attrs) |\n"
             }
             md += "\n"
         }
