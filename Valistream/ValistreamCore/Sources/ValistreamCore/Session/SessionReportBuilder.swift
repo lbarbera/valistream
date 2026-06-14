@@ -172,7 +172,7 @@ public struct SessionReportBuilder: Sendable {
         artifactIndex: [SessionArchive.IndexEntry]
     ) throws -> Data {
         let report = buildReport(session: session, playlists: playlists, findings: findings, artifactIndex: artifactIndex)
-        return try Finding.jsonEncoder.encode(report)
+        return try Finding.prettyJSONEncoder.encode(report)
     }
 
     /// Renders a human-readable Markdown report.

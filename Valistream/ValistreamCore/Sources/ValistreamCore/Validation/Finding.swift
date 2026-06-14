@@ -141,6 +141,13 @@ public struct Finding: Sendable, Equatable, Codable, Identifiable {
         return encoder
     }()
 
+    public static let prettyJSONEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes, .prettyPrinted]
+        return encoder
+    }()
+
     /// JSON decoder matching ``jsonEncoder``.
     public static let jsonDecoder: JSONDecoder = {
         let decoder = JSONDecoder()

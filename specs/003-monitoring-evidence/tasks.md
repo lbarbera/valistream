@@ -305,24 +305,24 @@ compact object per line.
 
 ### Tests for User Story 5 ⚠️ (write first, MUST FAIL before impl)
 
-- [ ] T036 [P] [US5] Pretty/compact encoder unit tests in
+- [X] T036 [P] [US5] Pretty/compact encoder unit tests in
       `ValistreamCore/Tests/ValistreamCoreTests/JSONEncoderTests.swift`: `prettyJSONEncoder` →
       multi-line, `.sortedKeys` stable ordering, schema-valid; `jsonEncoder` (stream) stays
       compact/single-line; both decode to identical logical content. (FR-026/027/028, SC-008)
-- [ ] T037 [US5] Integration pretty-JSON test in
+- [X] T037 [US5] Integration pretty-JSON test in
       `Valistream/ValistreamIntegrationTests/PrettyJSONFilesTests.swift`: structured report + sidecar on
       disk are multi-line/indented and schema-valid; `--json` stream remains one compact object per line.
       (SC-008/009)
 
 ### Implementation for User Story 5
 
-- [ ] T038 [US5] Add `Finding.prettyJSONEncoder` (`[.sortedKeys, .withoutEscapingSlashes, .prettyPrinted]`,
+- [X] T038 [US5] Add `Finding.prettyJSONEncoder` (`[.sortedKeys, .withoutEscapingSlashes, .prettyPrinted]`,
       ISO-8601) in `ValistreamCore/Sources/ValistreamCore/Validation/Finding.swift`; **keep** the compact
       `Finding.jsonEncoder` for the `--json` stream. (FR-026/028, D10)
-- [ ] T039 [US5] Use `prettyJSONEncoder` in `buildJSON` of
+- [X] T039 [US5] Use `prettyJSONEncoder` in `buildJSON` of
       `ValistreamCore/Sources/ValistreamCore/Session/SessionReportBuilder.swift` for the structured
       report file; values FROZEN — whitespace only. (FR-026/027)
-- [ ] T040 [US5] Use `prettyJSONEncoder` for the `*.meta.json` sidecar in
+- [X] T040 [US5] Use `prettyJSONEncoder` for the `*.meta.json` sidecar in
       `ValistreamCore/Sources/ValistreamCore/Archive/SessionArchive.swift` (depends on T010 naming).
       (FR-026)
 

@@ -79,7 +79,7 @@ public actor SessionArchive {
         let metaRelPath = "playlists/\(playlistID)/\(snapshot).meta.json"
         try result.body.write(to: sessionFolder.appending(path: bodyRelPath))
         let record = ArtifactRecord(requestId: requestId, bodyPath: bodyRelPath, result: result)
-        let metaData = try Finding.jsonEncoder.encode(record)
+        let metaData = try Finding.prettyJSONEncoder.encode(record)
         try metaData.write(to: sessionFolder.appending(path: metaRelPath))
         artifactIndex.append(IndexEntry(
             requestId: requestId,
