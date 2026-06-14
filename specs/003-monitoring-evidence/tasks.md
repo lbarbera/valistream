@@ -332,13 +332,13 @@ compact object per line.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T041 Run all of `quickstart.md` (US1–US5 automated checks) via xcode-tools `RunAllTests`;
+- [X] T041 Run all of `quickstart.md` (US1–US5 automated checks) via xcode-tools `RunAllTests`;
       confirm green.
-- [ ] T042 Re-confirm the FROZEN guards (`ReportJSONSchemaTests`, `RuleEngineTests`, conformance corpus,
+- [X] T042 Re-confirm the FROZEN guards (`ReportJSONSchemaTests`, `RuleEngineTests`, conformance corpus,
       exit-code assertions) show zero regression vs the T001 baseline. (SC-009)
-- [ ] T043 [P] Style/test compliance pass over all new/changed files against `styleguide.md` and
+- [X] T043 [P] Style/test compliance pass over all new/changed files against `styleguide.md` and
       `unit-testing.md`; resolve `XcodeListNavigatorIssues` warnings.
-- [ ] T044 Update serena memory (`implementation-progress`) with the 003 outcome, new public core API
+- [X] T044 Update serena memory (`implementation-progress`) with the 003 outcome, new public core API
       (`EvidenceReference`/resolver, `SnapshotID`, reworked `AliasRegistry`, `TraceEvent`/`TraceFormatter`),
       and the archive-naming + encoder changes.
 

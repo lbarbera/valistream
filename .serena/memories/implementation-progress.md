@@ -69,11 +69,26 @@ RFC8216.4.3.1.1, .4.3.4.2-BANDWIDTH, .4.3.4.2-URI, .4.3.4.1, .4.3.4.2.1, .4.3.3.
 - `SelectionPromptPolicyTests.swift` fully rewritten to test new API + `.usageError` case.
 - New `SelectionMatrixTests.swift` in `ValistreamIntegrationTests/`: 8 tests (5 policy-seam + 3 session-level) — all green.
 - **230 unit tests green** (`swift test`); **8 SelectionMatrixTests + 3 PromptSkipTests green** (Xcode).
-- Exit-code limitation: `--all` exits 64 (ArgumentParser `EX_USAGE`) not 2 — this is ArgumentParser's macOS behavior for unknown options; spec text said "exit 2" meaning "usage error class", not the literal code 2.
+- Exit-code FIXED (parent review): `--all`/unknown options must exit **2** per FROZEN contract (cli-interface.md), NOT 64. `ValistreamCommand` now overrides `static func main() async` to `parseAsRoot` + remap `Self.exitCode(for:) == .validationFailure` (EX_USAGE 64) → `Foundation.exit(2)`, while CleanExit (`--help`/`--version`) → 0 and `run()`-thrown `ExitCode(1/2/3/130)` pass through. Verified on the built binary: `--all`→2, unknown→2, missing-arg→2, `--select --preselect`→2, `--quiet --verbose`→2, `--version`→0 (prints `0.3.0`), `--help`→0.
+
+## Feature 003 — Reliable Monitoring & Evidence (0.3.0) — DONE (2026-06-14)
+Ships 0.3.0. FROZEN held: JSON report schema/values, rule IDs/catalog, exit codes 0/1/2/3/130 unchanged. **355 tests green** (RunAllTests, Xcode Valistream scheme), 0 warnings. One commit per US on `main` (b48d67e US1 … e150574 US5).
+- **US1 (T006-T013) — evidence**: `EvidenceReference` enum + pure `EvidenceResolver` (`Session/EvidenceResolver.swift`) join `Finding` on `resource` URL + `refreshIndex` (NEVER `playlists[].id`) → `.single`/`.pair(older,newer)`/`.unavailable(id)`. `SessionArchive.store` names files `<id>_<n>.m3u8` / `<id>_<n>.meta.json` keyed by real presentation id (was `%06d`). `ValidationSession+Reporting.archiveFetch` passes real registry id + tracks `evidenceEntries` on the actor. `StatusRenderer.renderFinding` prints `<id>_<n> <msg> · evidence: …` (no raw URL); `--json` stream stays compact. `SessionReportBuilder` markdown evidence spans (terminal/report parity via shared resolver).
+- **US2 (T014-T026) — heartbeat/roster/verbose**: `SnapshotID.label(id:index:)` `<id>_<n>`. Additive `SessionEvent` cases `.rosterReady([RosterEntry])`/`.refreshCompleted(playlistID:index:errors:warnings:)`/`.trace(TraceEvent)` + `ActivityProgress.sessionRefreshTotal` (`Session/SessionConfig.swift`). Session-wide monotonic counter `sessionRefreshTotal` bumped in `incrementRefreshCount` (once/refresh, never decreases). Pure `Output/TraceFormatter` (category-prefixed ID lines). `ProgressFormatter` heartbeat `<id> · refresh <sessionRefreshTotal> · ongoing` (ProgressView delegates → T024 free). CLI `LiveInputGuard.swift` (termios ECHO/ICANON, TTY-gated, `defer`-restore). StatusRenderer renders roster/refreshCompleted (normal+) + trace (verbose only).
+- **US3 (T027-T030) — role IDs + legend**: `PlaylistAlias` adds `audio_<slug(LANGUAGE)>` (NAME-disambiguated → `audio_en_commentary`), `subs_<…>`, `iframe_<height>p`, role+ordinal fallback; charset `[a-z0-9_-]`. `makeAttributes` now also passes `CODECS` for variants (needed for `<height>p_<codecs>` live). Markdown report `## Legend` table `| ID | URL | Role | Attributes |` (only place URLs appear in report). JSON report untouched.
+- **US4 (T031-T035) — selection + version**: `--all` REMOVED (unknown→exit 2 via the `main()` remap above); `--preselect <pattern>` `@Option` (old `--select <pattern>` role); `--select` repurposed to `@Flag` (interactive checklist, non-TTY→all+notice); `--select`+`--preselect`→exit 2. `SelectionPromptPolicy` rewritten: cases `.prompt`/`.skip`/`.usageError`, factory `from(isTTY:selectFlag:preselectPatterns:)`. `MARKETING_VERSION=0.3.0`; `--help` migration table.
+- **US5 (T036-T040) — pretty JSON files**: `Finding.prettyJSONEncoder` (`[.sortedKeys,.withoutEscapingSlashes,.prettyPrinted]`, ISO-8601). `SessionReportBuilder.buildJSON` (report file) + `SessionArchive.store` (`.meta.json` sidecar) use it. Compact `Finding.jsonEncoder` retained for `--json` STREAM **and** `FindingsLog` JSONL (one object per line). ReportJSONSchemaTests still green (whitespace-only change).
+- **Polish (T041-T044)**: full suite 355 green; FROZEN guards (ReportJSONSchemaTests/RuleEngine/conformance/exit codes) zero regression; 0 navigator warnings; this memory.
+
+### New public ValistreamCore API (003)
+`EvidenceReference`/`EvidenceResolver`, `SnapshotID`, reworked `AliasRegistry` role grammar, `RosterEntry`, `TraceEvent`, `TraceFormatter`, `SessionEvent.{rosterReady,refreshCompleted,trace}`, `ActivityProgress.sessionRefreshTotal`, `Finding.prettyJSONEncoder`, `SelectionPromptPolicy.{prompt,skip,usageError}` + new factory.
+
+### Process notes (003 implementation, per-US sonnet workers)
+- Two recurring worker bugs to guard against: (1) integration test files placed at repo-root `Valistream/ValistreamIntegrationTests/` and CLI files at `Valistream/Valistream/` — correct dirs are the DOUBLED `Valistream/Valistream/ValistreamIntegrationTests/` and `Valistream/Valistream/Valistream/`; (2) new test files missing `import Foundation` → "Cannot find 'URL' in scope".
+- Integration tests that drive a live session MUST use `LiveSessionHarness.abortAndFinish()` (abort + `runTask.cancel()` + await). A hand-rolled task group calling only `session.abort()` HANGS for the full 1-min timeout: monitors parked on `ManualClock.sleep` only wake on task cancellation, not on `abort()` alone.
 
 ## NOT done (remaining)
-- T036–T044: US5 pretty-JSON + polish (next worker).
-- T049: Manual quickstart against real streams (cannot run headless). FR-029 manual Ctrl-C prompt cancel test.
+- Manual quickstart against real streams (cannot run headless): live roster/heartbeat/Ctrl-C, real prompt-cancel.
 
 ## Deviations / notes
 - swift-tools-version 6.3 (template), not 6.0 as T001 text says.
