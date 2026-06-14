@@ -172,7 +172,7 @@ public actor ValidationSession {
 
         setState(.fetchingMaster)
         let rootLoad = await loader.load(inputURL)
-        await archiveFetch(rootLoad.result, playlistID: "master")
+        await archiveFetch(rootLoad.result, requestURL: inputURL, playlistID: "master")
         for violation in rootLoad.deliveryViolations {
             record(violation, resource: inputURL)
         }
@@ -214,7 +214,7 @@ public actor ValidationSession {
                 )))
                 let load = await loader.load(reference.url, role: reference.role)
                 let playlistID = "\(reference.role.rawValue)-\(index)"
-                await archiveFetch(load.result, playlistID: playlistID)
+                await archiveFetch(load.result, requestURL: reference.url, playlistID: playlistID)
                 if load.playlist != nil {
                     trackPlaylist(playlistID, kind: .media, role: reference.role, url: reference.url, selected: true, refreshCount: 1)
                 }

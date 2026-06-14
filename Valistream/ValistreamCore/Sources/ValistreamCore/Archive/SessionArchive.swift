@@ -66,8 +66,11 @@ public actor SessionArchive {
     ///
     /// Body and sidecar paths use `playlists/<playlistID>/<playlistID>_<index>` and remain relative
     /// to the session folder in the returned record and artifact index.
+    /// - Parameter requestURL: The URL the playlist was requested under. Used as the artifact index
+    ///   join key so findings (keyed on the requested URL) resolve even when the fetch was redirected.
+    ///   Defaults to `result.url` (the redirected final URL) when not supplied.
     @discardableResult
-    public func store(result: FetchResult, playlistID: String) throws -> ArtifactRecord {
+    public func store(result: FetchResult, requestURL: URL? = nil, playlistID: String) throws -> ArtifactRecord {
         requestCounter += 1
         let requestId = "r\(requestCounter)"
         let refreshIndex = refreshCounts[playlistID, default: 0]
@@ -83,7 +86,7 @@ public actor SessionArchive {
         try metaData.write(to: sessionFolder.appending(path: metaRelPath))
         artifactIndex.append(IndexEntry(
             requestId: requestId,
-            url: result.url,
+            url: requestURL ?? result.url,
             bodyPath: bodyRelPath,
             metaPath: metaRelPath
         ))

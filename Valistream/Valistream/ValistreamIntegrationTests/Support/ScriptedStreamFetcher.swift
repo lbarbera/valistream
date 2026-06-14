@@ -29,7 +29,7 @@ final class ScriptedStreamFetcher: StreamFetching, @unchecked Sendable {
     enum Reply {
         case body(String, status: Int = 200)
         case data(Data, status: Int = 200)
-        case redirect(finalBody: String, hops: [RedirectHop])
+        case redirect(finalURL: URL, finalBody: String, hops: [RedirectHop])
         case transportError(String)
     }
 
@@ -145,9 +145,10 @@ final class ScriptedStreamFetcher: StreamFetching, @unchecked Sendable {
         case .data(let data, let status):
             let outcome: FetchOutcome = (200..<400).contains(status) ? .success : .httpError(status: status)
             return FetchResult(url: url, body: data, metadata: metadata(status: status, headers: [:], redirects: []), outcome: outcome)
-        case .redirect(let finalBody, let hops):
+        case .redirect(let finalURL, let finalBody, let hops):
+            // Model the real fetcher: FetchResult.url is the redirected final URL, not the requested URL.
             return FetchResult(
-                url: url,
+                url: finalURL,
                 body: Data(finalBody.utf8),
                 metadata: metadata(status: 200, headers: ["Content-Type": "application/vnd.apple.mpegurl"], redirects: hops),
                 outcome: .success

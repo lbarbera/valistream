@@ -116,7 +116,7 @@ struct DeliveryFailureTests {
             RedirectHop(url: url, statusCode: 301, headers: ["Location": base + "v2/master.m3u8"]),
             RedirectHop(url: URL(string: base + "v2/master.m3u8")!, statusCode: 302, headers: [:]),
         ]
-        fetcher.stub(url, reply: .redirect(finalBody: conformantMedia, hops: hops))
+        fetcher.stub(url, reply: .redirect(finalURL: URL(string: base + "v2/master.m3u8")!, finalBody: conformantMedia, hops: hops))
 
         let result = await fetcher.fetch(url)
 

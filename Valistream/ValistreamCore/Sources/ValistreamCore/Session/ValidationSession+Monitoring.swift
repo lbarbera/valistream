@@ -95,7 +95,7 @@ extension ValidationSession {
                 )))
             }
 
-            await archiveFetch(load.result, playlistID: presentationID)
+            await archiveFetch(load.result, requestURL: load.url, playlistID: presentationID)
 
             // Verbose: continuity comparison trace (emitted before checking for violations).
             if config.verboseEvents, load.playlist?.media != nil {

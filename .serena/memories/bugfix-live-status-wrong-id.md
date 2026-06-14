@@ -21,7 +21,7 @@ asserts `variant-0` never a key). Direct-media monitor-state key changed `"media
 media playlist = `video_1`, matches roster). 27 integration + 32 FROZEN-guard tests green; build 0
 warnings; JSON `playlists[].id` unchanged.
 
-## KNOWN FOLLOW-UP (not yet fixed) — master redirect identity
+## FOLLOW-UP — FIXED 2026-06-14 (see `mem:bugfix-master-redirect-identity`) — master redirect identity
 `URLSessionStreamFetcher` sets `FetchResult.url = response.url ?? url` (redirected final URL). When
 the master URL redirects, master is registered under TWO urls: `result.url` (archive+registry via
 `archiveFetch`) and `inputURL` (findings+roster via `run()`), giving dedup alias `master_2` and a

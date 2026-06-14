@@ -9,7 +9,7 @@ extension ValidationSession {
 
     // MARK: - Archive
 
-    func archiveFetch(_ result: FetchResult, playlistID: String) async {
+    func archiveFetch(_ result: FetchResult, requestURL: URL, playlistID: String) async {
         guard let archive, archiveStopped == false else { return }
         if let watcher = diskWatcher {
             switch try? watcher.check() {
@@ -40,25 +40,28 @@ extension ValidationSession {
             }
         }
         guard result.outcome == .success, result.body.isEmpty == false else { return }
+        // Identity is keyed on the requested URL (not result.url, which is the redirected final URL):
+        // findings, roster, and discovery-time alias registration all key on the requested URL, so the
+        // archive entry and any master alias registered here must match for the evidence join to resolve.
         let presentationID: String
-        if let registered = aliasRegistry.alias(for: result.url)?.alias {
+        if let registered = aliasRegistry.alias(for: requestURL)?.alias {
             presentationID = registered
         }
         else if playlistID == "master" {
             let isMaster = result.bodyText?.contains("#EXT-X-STREAM-INF") == true
                 || result.bodyText?.contains("#EXT-X-MEDIA:") == true
             let role: AliasRole = isMaster ? .master : .video
-            presentationID = aliasRegistry.alias(for: result.url, role: role).alias
+            presentationID = aliasRegistry.alias(for: requestURL, role: role).alias
         }
         else {
             presentationID = playlistID
         }
-        guard let record = try? await archive.store(result: result, playlistID: presentationID) else { return }
+        guard let record = try? await archive.store(result: result, requestURL: requestURL, playlistID: presentationID) else { return }
         let snapshot = URL(filePath: record.bodyPath).deletingPathExtension().lastPathComponent
         let metaPath = "playlists/\(presentationID)/\(snapshot).meta.json"
         evidenceEntries.append(SessionArchive.IndexEntry(
             requestId: record.requestId,
-            url: result.url,
+            url: requestURL,
             bodyPath: record.bodyPath,
             metaPath: metaPath
         ))
