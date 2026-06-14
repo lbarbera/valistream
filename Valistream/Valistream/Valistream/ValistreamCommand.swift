@@ -18,14 +18,8 @@ struct ValistreamCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "valistream",
         abstract: "Validate and monitor HLS streams against RFC 8216 and Apple authoring rules.",
-        discussion: """
-            BREAKING CHANGES in 0.3.0 (selection flags)
-            ─────────────────────────────────────────────
-            --all                  → (removed; all renditions are now the default)
-            --select <pattern>     → --preselect <pattern>
-            --select (no value)    → --select  (now the interactive checklist)
-            """,
-        version: "0.3.0"
+        discussion: "",
+        version: "0.4.0"
     )
 
 
