@@ -228,7 +228,7 @@ struct TerminalWriter: Sendable {
         case .yellow: "33"
         case .green: "32"
         case .cyan: "36"
-        case .dim: "2"
+        case .dim: "90"
         }
         return "\u{1B}[\(code)m\(text)\u{1B}[0m"
     }
