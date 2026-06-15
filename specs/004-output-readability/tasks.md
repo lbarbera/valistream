@@ -303,9 +303,9 @@ the output modes, and locate the report and evidence, with zero doc-vs-binary di
 
 ### Implementation for User Story 4
 
-- [ ] T045 [US4] Verify `MARKETING_VERSION` = `0.4.0` for all build configurations in
+- [X] T045 [US4] Verify `MARKETING_VERSION` = `0.4.0` for all build configurations in
       `Valistream/Valistream/Valistream.xcodeproj/project.pbxproj` (already bumped 2026-06-15; FR-001, research D13).
-- [ ] T046 [US4] Verify `CommandConfiguration.version` = `0.4.0` (already set) and update `--help`/version
+- [X] T046 [US4] Verify `CommandConfiguration.version` = `0.4.0` (already set) and update `--help`/version
       discussion copy in `Valistream/Valistream/Valistream/ValistreamCommand.swift` (FR-001, readme X2; depends T033, same file).
 - [ ] ~~T047 [US4] Measure release coverage via `xcrun xccov` for the README badge~~ — **REMOVED**:
       coverage badge dropped (FR-029a; no verifiable durable source). No README coverage value is measured
@@ -313,7 +313,7 @@ the output modes, and locate the report and evidence, with zero doc-vs-binary di
 - [ ] T048 [US4] Verify the quick-start public HLS test stream resolves and runs cleanly with the `0.4.0`
       binary; capture sanitized example output for the README (FR-031/037, readme Q2; no committed
       credentials/expiring URLs).
-- [ ] T049 [US4] Rewrite `README.md` (repo root) — full GitHub structure (FR-029): name/description,
+- [X] T049 [US4] Rewrite `README.md` (repo root) — full GitHub structure (FR-029): name/description,
       motivation, capabilities, how it works, quick start, installation, usage, option reference, output
       modes, generated artifacts, examples, exit codes, troubleshooting, limitations/platform; badges
       (license/release/platform — **no coverage badge**, B1–B2); primary `valistream-cli.zip` install + secondary source build + unsupported channels
