@@ -25,12 +25,14 @@ Implementation steps belong in `tasks.md`.
 3. `RunAllTests` (Valistream scheme) → all unit + integration green, including the 003 frozen-surface guards
    (no regression).
 
-## Coverage (user-enabled source, research D15)
+## Coverage (local diagnostics only — no badge; superseded D15)
+
+The README **coverage badge is dropped** (FR-029a — no verifiable durable source). `codeCoverage` stays
+enabled in the xctestplan for local inspection only:
 
 1. Run the `Valistream` scheme tests with a result bundle (coverage enabled by the xctestplan).
 2. Extract line coverage: `xcrun xccov view --report --json <Result.xcresult>`.
-3. Use the measured percentage for the README coverage badge (contracts/readme B3). The badge MUST reflect
-   this current value (FR-029a, SC-010); omit it if it cannot be verified.
+3. The figure is for local diagnostics; it is **not** published or shown as a README badge this release.
 
 ## Scenario validation (maps to user stories)
 

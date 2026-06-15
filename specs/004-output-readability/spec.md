@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-14
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "Increase stdout and report readability across quiet, normal, and verbose modes through meaningful color and emphasis, message grouping, whitespace, and natural language. Make output easy to skim and navigate. Rewrite README.md as a complete GitHub-style onboarding guide with rationale, operation, installation, options, and realistic examples. Ship as 0.4.0."
 
@@ -67,10 +67,11 @@
   but only after verifying it runs cleanly with valistream `0.4.0` (a dead link or a stream that
   errors would be bad advertising); generic command syntax elsewhere MAY use a placeholder URL.
 - Q: Should the README use status badges, and which? → A: Yes; a minimal set of shields-style badges
-  backed by verifiable facts — license, latest release/version, platform/Swift, and code coverage —
-  near the top. Every badge MUST reflect a real, current value (no broken or stale badge); the
-  coverage badge requires a verifiable coverage source. The report-level badge exclusion in FR-027a
-  applies to the generated session report only, not to the README.
+  backed by verifiable facts — license, latest release/version, and platform/Swift — near the top.
+  Every badge MUST reflect a real, current value (no broken or stale badge). (Update 2026-06-15: the
+  code-coverage badge originally listed here is dropped — no verifiable durable coverage source exists;
+  per the omit-rather-than-stale rule it is excluded. See FR-029a.) The report-level badge exclusion in
+  FR-027a applies to the generated session report only, not to the README.
 - Q: What verified installation/distribution method should the README document as primary? → A: A
   prebuilt `valistream-cli.zip` CLI artifact published on each GitHub Release alongside the
   auto-generated source archive; users download and run it directly. The verified source build remains
@@ -236,6 +237,20 @@ and find the session report and playlist evidence.
   MUST be consistent across all human-readable output.
 - **FR-007**: System messages MUST use concise natural language that leads with the useful outcome and
   avoids unexplained internal terminology.
+- **FR-007a**: To make FR-007 testable, every normal- and quiet-mode result, notice, lifecycle, and
+  summary line MUST begin (after the timestamp and any status marker or severity label) with an outcome
+  word naming a result or state — one of `Validated`, `Passed`, `Refreshed`, `Loaded`, `Discovered`,
+  `Selected`, `Recovered`, `Ready`, `Complete`, `Wrote`, `Saved`, `Found`, `Detected`, `Warning`,
+  `Error`, `Failed`, `Invalid`, `Unavailable`, `Missing`, `Interrupted`, `Stopped`, `Added`, `Removed`,
+  `Changed`, or a leading finding count of the form `<N> warning(s)` / `<N> error(s)` — and MUST NOT lead
+  with an operation or process name. Those same human-readable lines MUST NOT contain unexplained
+  internal terminology: source type or symbol names (any CamelCase identifier such as
+  `ValidationSession`, `RuleEngine`, `TerminalWriter`), mechanism jargon (`tokenize`, `comparator`,
+  `diff`, `envelope`, `emit`, `buffer`, `serialize`, `encoder`, `FindingsLog`, `JSONL`/`JSON Lines`,
+  `stage`, `pipeline`), or raw `EXT-X-*` tag names. Domain vocabulary the spec itself uses — session,
+  phase, playlist, master/media playlist, variant, rendition, snapshot, refresh, finding, evidence,
+  severity, roster, report, segment, target duration, protection — is permitted. Verbose-only
+  diagnostic lines shown under an explicit category label are exempt from the banned-term list.
 - **FR-008**: Routine normal-mode success MUST be represented by one persistent result per playlist
   refresh; duplicate statements of the same success or validation outcome MUST be removed.
 - **FR-008a**: Every human-readable terminal message in quiet, normal, and verbose modes MUST include a
@@ -362,11 +377,13 @@ and find the session report and playlist evidence.
   reference, output modes, generated artifacts, realistic examples, exit codes, troubleshooting,
   limitations/platform support, and links to applicable project resources.
 - **FR-029a**: The README MUST display a minimal set of shields-style status badges near the top,
-  limited to badges backed by a verifiable fact: license, latest release/version, platform/Swift
-  version, and code coverage. Every displayed badge MUST reflect a real, current value; a badge whose
-  underlying fact cannot be verified MUST be omitted rather than shown stale or broken. The coverage
-  badge requires a verifiable coverage source. The report-level prohibition on shields-style badges
-  (FR-027a) governs the generated session report only and does not apply to the README.
+  limited to badges backed by a verifiable fact: license, latest release/version, and platform/Swift
+  version. Every displayed badge MUST reflect a real, current value; a badge whose underlying fact
+  cannot be verified MUST be omitted rather than shown stale or broken. A code-coverage badge is NOT
+  displayed in this release: no verifiable, durable coverage source exists (no CI coverage publishing),
+  so per the omit-rather-than-stale rule the coverage badge is excluded. The report-level prohibition
+  on shields-style badges (FR-027a) governs the generated session report only and does not apply to the
+  README.
 - **FR-030**: README installation instructions MUST distinguish verified supported methods from
   unsupported or unavailable distribution methods and MUST include prerequisites and a verified source
   build path. The primary verified method MUST be downloading the prebuilt `valistream-cli.zip`
@@ -493,10 +510,9 @@ and find the session report and playlist evidence.
 - Stream query strings containing account metadata, client IPs, timestamps, opaque authorization
   values, or fixed playback windows are treated as sensitive and potentially expiring even when no
   separate login is required.
-- The code-coverage badge requires a verifiable coverage source (for example, a CI pipeline that
-  measures and publishes coverage). If no such source exists yet, establishing one is a prerequisite
-  for displaying the coverage badge; until it does, per FR-029a the badge is omitted rather than shown
-  stale.
+- No verifiable, durable code-coverage source exists for this release (no CI pipeline measures and
+  publishes coverage). Per FR-029a's omit-rather-than-stale rule, the code-coverage badge is therefore
+  not displayed in `0.4.0`; a coverage badge MAY be added in a later release once such a source exists.
 - The release process publishes a prebuilt `valistream-cli.zip` CLI artifact on each GitHub Release,
   alongside the auto-generated "Source code (zip)" archive; this is the primary distribution channel
   the README documents.

@@ -33,8 +33,8 @@ heartbeat, `--no-color`/`NO_COLOR`/`TERM=dumb` handling, and `Finding.observedAt
    method+keyformat) — no validation change.
 6. **Incident timeline** in the Markdown report (timestamped, links to severity-grouped findings, no
    duplication) + **playlist lifecycle events**.
-7. **README rewrite** with verifiable badges incl. **code coverage** (from the now-enabled
-   `Valistream.xctestplan`), `valistream-cli.zip` primary install, verified quick-start stream.
+7. **README rewrite** with verifiable badges (license / release / platform-Swift; **no coverage badge** —
+   no verifiable durable source), `valistream-cli.zip` primary install, verified quick-start stream.
 8. **Version 0.4.0** + **compatibility guard tests** proving the frozen surfaces are unchanged.
 
 ## Technical Context
@@ -52,8 +52,9 @@ No database.
 **Testing**: Swift Testing (`unit-testing.md` rules). Unit/conformance → `swift test` in
 `Valistream/ValistreamCore/` (`ValistreamCoreTests`). Integration → `Valistream` scheme /
 `Valistream/TestPlans/Valistream.xctestplan` (`ValistreamCoreTests` + `ValistreamIntegrationTests`).
-**Coverage** is enabled in `Valistream.xctestplan` (`codeCoverage` for `Valistream` + `ValistreamCore`),
-read via `xcrun xccov` (research D15) for the README badge (FR-029a, SC-010).
+**Coverage** remains enabled in `Valistream.xctestplan` (`codeCoverage` for `Valistream` +
+`ValistreamCore`) for local diagnostics; it no longer feeds a README badge (the coverage badge is
+dropped — no verifiable durable source; FR-029a).
 
 **Target Platform**: macOS 14+ command-line tool (`valistream`).
 
@@ -178,9 +179,9 @@ Valistream/Valistream/ValistreamIntegrationTests/
 └── CompatibilityFreezeTests      # NEW: --json/JSONL/schema/exit unchanged (+ reuse 003 guards)
 
 # ── Repo root / project config ────────────────────────────────────────────────────────
-README.md                                          # REWRITE (FR-029–037) with badges incl. coverage
+README.md                                          # REWRITE (FR-029–037) with badges (no coverage badge)
 Valistream/Valistream/Valistream.xcodeproj/project.pbxproj   # MARKETING_VERSION 0.3.0→0.4.0 (all configs)
-Valistream/TestPlans/Valistream.xctestplan         # coverage already enabled (source for badge)
+Valistream/TestPlans/Valistream.xctestplan         # coverage enabled (local diagnostics; no badge)
 ```
 
 **Structure Decision**: Single-project layout is unchanged. New Core types are pure values in

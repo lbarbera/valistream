@@ -13,12 +13,14 @@ exit codes · troubleshooting · limitations/platform support · links to projec
 ## 2. Badges (FR-029a, SC-010)
 
 - B1. A minimal badge set near the top, each backed by a verifiable fact: **license**, **latest
-  release/version** (`0.4.0`), **platform/Swift version**, **code coverage**.
+  release/version** (`0.4.0`), and **platform/Swift version**. (A **code-coverage** badge is *not*
+  displayed this release — no verifiable durable source; see B3.)
 - B2. Every displayed badge reflects a real, current value. A badge whose fact cannot be verified is
   **omitted**, never shown stale or broken.
-- B3. The coverage badge value comes from the `Valistream/TestPlans/Valistream.xctestplan` coverage run
-  (`codeCoverage` enabled for `Valistream` + `ValistreamCore`), measured via `xcrun xccov` against the
-  result bundle (research D15). The report-level badge prohibition (report-format R16 / FR-027a) does not
+- B3. **No coverage badge this release.** `codeCoverage` stays enabled in
+  `Valistream/TestPlans/Valistream.xctestplan` (`Valistream` + `ValistreamCore`) for local diagnostics,
+  but no CI publishes a durable coverage value, so per B2's omit-rather-than-stale rule the coverage
+  badge is excluded (FR-029a). The report-level badge prohibition (report-format R16 / FR-027a) does not
   apply to the README.
 
 ## 3. Installation (FR-030)

@@ -198,9 +198,9 @@ The feature therefore **refines and extends** that layer rather than building ou
 - **Decision**: Rewrite `README.md` to the full GitHub structure (FR-029): name + description, motivation,
   capabilities, how it works, quick start, installation, usage, option reference, output modes, generated
   artifacts, realistic examples, exit codes, troubleshooting, limitations/platform support, resources.
-  - **Badges (FR-029a)**: license, latest release/version (`0.4.0`), platform/Swift, and **code coverage**.
-    Coverage value is taken from the now-enabled `Valistream.xctestplan` coverage run (D15); a badge whose
-    fact cannot be verified is omitted, never shown stale.
+  - **Badges (FR-029a)**: license, latest release/version (`0.4.0`), and platform/Swift. **No code-coverage
+    badge** this release — no verifiable durable source (no CI publishing), so per the omit-rather-than-stale
+    rule it is excluded (see superseded D15). A badge whose fact cannot be verified is omitted, never stale.
   - **Install (FR-030)**: primary = download prebuilt `valistream-cli.zip` from GitHub Releases and run;
     secondary = verified source build; unpublished channels (Homebrew, etc.) marked unsupported.
   - **Quick start (FR-031/037)**: a stable, credential-free public HLS test stream that runs as-is on
@@ -231,16 +231,19 @@ The feature therefore **refines and extends** that layer rather than building ou
 
 ### D15 — Coverage measurement mechanics (**user directive**)
 
-- **Decision**: Coverage is measured from `Valistream/TestPlans/Valistream.xctestplan` (now `codeCoverage`
-  enabled for both `Valistream` and `ValistreamCore`). Produce the percentage by running the `Valistream`
-  scheme tests with a result bundle and reading line coverage via `xcrun xccov view --report --json
-  <Result.xcresult>`. The README coverage badge reflects that current measured value at release; if no
-  continuously published source exists yet, the badge is generated from this release-time measurement and
-  re-verified before completion (FR-029a, SC-010). This is the single source of coverage truth for the
-  badge.
-- **Rationale**: directly uses the coverage the user enabled; keeps the badge verifiable (no broken/stale).
+> **Superseded 2026-06-15 (user directive):** the README **coverage badge is dropped** — a one-time
+> release-time measurement is not a verifiable *durable* source, and per FR-029a a badge that cannot be
+> kept current is omitted rather than shown stale. `codeCoverage` stays enabled in the xctestplan for
+> **local diagnostics only**; no coverage value is published or badged in `0.4.0`.
+
+- **Original decision (retained for context)**: Coverage is measured from
+  `Valistream/TestPlans/Valistream.xctestplan` (`codeCoverage` enabled for both `Valistream` and
+  `ValistreamCore`) by running the `Valistream` scheme tests with a result bundle and reading line coverage
+  via `xcrun xccov view --report --json <Result.xcresult>`.
+- **Rationale**: directly uses the coverage the user enabled; the measurement mechanics remain valid for
+  local inspection even though no badge is published.
 - **Alternatives rejected**: a hard-coded coverage badge (stale, FR-029a forbids); standing up CI in this
-  feature (out of scope; the xctestplan source suffices for a verifiable value).
+  feature (out of scope).
 
 ---
 
