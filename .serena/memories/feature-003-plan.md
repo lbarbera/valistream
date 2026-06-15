@@ -8,16 +8,21 @@ Planned 2026-06-14. Artifacts: `specs/003-monitoring-evidence/{plan,research,dat
 US1 evidence (P1/MVP) → US2 clutter-free monotonic heartbeat → US3 meaningful IDs → US4 default-all
 selection → US5 pretty JSON files. Segment/bandwidth audit still OUT.
 
-## FROZEN (FR-001/002, do not touch)
-JSON report **schema/fields/values incl. `playlists[].id`**; rule set/rule IDs/finding catalog; exit
-codes 0/1/2/3/130. Permitted structured-report changes ONLY: pretty-print whitespace + artifact-index
-path *values* (FR-029). **No new dependency, project, or layer.** Core stays Foundation-only.
+## Compatibility contract (amended 2026-06-15)
+Validation rule set/rule IDs/finding catalog and exit codes 0/1/2/3/130 remain frozen. The JSON report
+schema is intentionally versioned beyond feature 001: every artifact-index entry adds `capturedAt`
+(response completion, after the full body is received) and `durationMs` (request start through response
+completion, rounded to a non-negative integer millisecond value). Matching fields are required in each
+artifact metadata sidecar. Backward schema compatibility is not required; unrelated fields/semantics,
+including `playlists[].id`, remain unchanged. Every Markdown evidence reference also displays the
+referenced artifact's `capturedAt` and `durationMs`; continuity findings display timing for both files.
+**No new dependency, project, or layer.** Core stays Foundation-only.
 
 ## Binding design decisions (research.md D1–D12)
-- **D1/D2 Evidence = presentation join, NOT a schema field.** `Finding` already has `resource: URL` +
-  `refreshIndex: Int?`; archive `IndexEntry{requestId,url,bodyPath,metaPath}`. Pure `EvidenceResolver`
-  (new `Session/EvidenceResolver.swift`) → `.single`/`.pair`(continuity)/`.unavailable(id)`. **Join on
-  URL, never `playlists[].id`.** Whole-file evidence only (no line/segment locus).
+- **D1/D2 Evidence remains a presentation join.** `Finding` has `resource: URL` + `refreshIndex: Int?`;
+  evidence resolution still joins on URL, never `playlists[].id`, and remains whole-file only. The
+  artifact-index entry is now intentionally extended with `capturedAt` + `durationMs`; these timing
+  fields describe the fetch and are not first-class evidence references.
 - **D3 ID scheme** = rework `AliasRegistry` IN PLACE (`Session/PlaylistAlias.swift`, keep public API):
   master / `<height>p_<codecs>` (drop `video-` prefix, append codecs) / `audio_<slug(LANGUAGE)>`
   (+`_<slug(NAME)>` on collision) / `subs_<…>` / `iframe_<height>p`; codecs = each CODECS entry trimmed

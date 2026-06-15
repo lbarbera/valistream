@@ -17,5 +17,15 @@ Feature 003 contracts remain authoritative: no changes to validation rules/findi
 ## Accessibility/readability additions
 Color reinforces but never carries meaning alone; plain text is baseline. Honor existing styling gates (`NO_COLOR`, `--no-color`, non-TTY, limited terminal). No styling/control bytes in plain output or reports. Symbols need text/fallback. Important content must wrap without loss at 80/120 columns.
 
+## Clarifications completed (2026-06-15)
+Seven decisions are encoded under `## Clarifications` in the spec:
+1. Normal mode persists one concise result for every successful refresh.
+2. Every human-readable terminal message is timestamped using compact local `[HH:mm:ss.SSS]`; report events use full local ISO 8601 with milliseconds and numeric UTC offset.
+3. Timestamps represent event occurrence time and the same recorded instant is reused across terminal/report representations.
+4. Markdown adds an incident-focused chronological timeline for findings, failures, interruption/shutdown, and playlist lifecycle events; routine successful refreshes are excluded.
+5. Full findings remain in severity-grouped sections; compact timeline entries link to them without duplicating messages/evidence.
+6. Playlist lifecycle events are unavailable, recovered, added, removed, and identity-changed events.
+7. Equal-timestamp incident entries preserve recorded event sequence.
+
 ## Quality
-`specs/004-output-readability/checklists/requirements.md` passes all items on first validation. No NEEDS CLARIFICATION markers.
+`specs/004-output-readability/checklists/requirements.md` remains 16/16 passing after clarification. No NEEDS CLARIFICATION markers.

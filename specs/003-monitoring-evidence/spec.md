@@ -35,10 +35,16 @@ short, human-readable label shown in output and report in place of full URLs.)
 - Q: What does `--verbose` show? → A: Maximum descriptiveness — verbose traces every action the tool performs as a descriptive, category-prefixed, ID-based line (e.g. `Fetch: requesting playlist <ID>`; `Fetch: playlist <ID> HTTP 200; 25ms; 1.3 kB`; `Validation: playlist <ID> — OK`; `Stored: playlist <ID> → <file> in playlists/`), covering at least fetch intent, fetch result (status/duration/bytes), per-playlist and per-rule validation outcomes including `OK`, archive writes, refresh scheduling/cadence, and continuity comparisons. Verbose stays ID-based; full URLs remain confined to the roster, so SC-003 holds at every tier. Full catalog: see the **Output message catalog** table under Requirements.
 - Q: Video-rendition ID `1080p_avc1` vs the frozen `variant_1920x1080_avc1` — which is canonical? → A: Adopt `1080p_avc1`. Video IDs are `<height>p_<codecs>` — pixel height + `p`, no `variant_` prefix, codecs joined by `-` (e.g. `1080p_avc1`, `1080p_avc1-mp4a`). Master stays `master`; audio/subtitle/I-frame keep their role prefixes (`audio_en`, `subs_en`, `iframe_<height>p`). Supersedes the earlier `variant_<resolution>_<codecs>` form; same-height collisions resolved by the dedup suffix (FR-019).
 - Q: What does the continuity `_<index>` count, and where does `<id>_<n>` appear? → A: 0-based per-playlist refresh index (first fetch `_0`, +1 each refresh). The indexed form `<id>_<n>` denotes a specific snapshot and is used wherever a particular refresh is meant: continuity findings (both operands, e.g. `1080p_avc1_4`↔`1080p_avc1_5`), single-snapshot findings, every `--verbose` action/trace line (e.g. `Fetch: playlist 1080p_avc1_5 …`, `Stored: …`, `Validation: …`, `Compare: …`), and the per-refresh status line, plus the archive filename. The bare `<id>` is used for identity/display: roster, legend, in-place heartbeat, ID assignment. VOD/single-fetch playlists only have `_0`.
-- Q: How are archived playlist snapshots named, given 001 uses `playlists/<id>/NNNNNN.m3u8`? → A: `playlists/<id>/<id>_<n>.m3u8` with a matching `<id>_<n>.meta.json` sidecar (e.g. `playlists/1080p_avc1/1080p_avc1_5.m3u8`) — keep the per-playlist subdir, but name the file with the snapshot label so an evidence file is self-identifying when attached to a ticket. Refines feature 001's archive layout; the structured report's schema stays frozen (FR-002), only the artifact-index path values reflect the new names.
+- Q: How are archived playlist snapshots named, given 001 uses `playlists/<id>/NNNNNN.m3u8`? → A: `playlists/<id>/<id>_<n>.m3u8` with a matching `<id>_<n>.meta.json` sidecar (e.g. `playlists/1080p_avc1/1080p_avc1_5.m3u8`) — keep the per-playlist subdir, but name the file with the snapshot label so an evidence file is self-identifying when attached to a ticket. Refines feature 001's archive layout; artifact-index paths reflect the new names and artifact timing fields are added by the later 2026-06-15 clarification.
 - Q: How is each evidence reference rendered in the human-readable Markdown report? → A: As an inline code span containing the relative archive path only (e.g. `playlists/1080p_avc1/1080p_avc1_5.m3u8`) — matching the terminal form exactly; not a Markdown link, so it stays copy-pasteable and viewer-agnostic.
 - Q: In the evidence-unavailable notice, how is the attempted resource named? → A: Always by the playlist's ID/label, never a raw URL; when a failure prevented normal ID assignment a deterministic placeholder is used (master → `master`; otherwise the role-plus-ordinal fallback of FR-020), so SC-003 (zero raw URLs in the body) holds unconditionally.
 - Q: Does an evidence reference pinpoint a locus inside the file (line/segment), or name the whole file only? → A: Whole archived snapshot file only — no in-file line number or segment/tag pointer. Matches the user's "exact file" brief and the two-file continuity model; the self-identifying filename is the proof. (A locus would be new derived data outside FR-001's frozen finding catalog.)
+
+### Session 2026-06-15
+
+- Q: Should per-artifact timestamps be added to JSON sidecars and structured reports despite the previously frozen schema? → A: Yes. Add `capturedAt` and non-negative integer `durationMs` fields to every artifact metadata sidecar and corresponding structured-report artifact-index entry. Backward compatibility with the feature 001 report schema is not required; publish and validate an updated schema version. Timestamp semantics are defined by the following clarification.
+- Q: What instant does `capturedAt` represent, and what interval does `durationMs` measure? → A: `capturedAt` is the response-completion instant, after the complete response body has been received. `durationMs` is the elapsed time from request start through that same response completion, rounded to a non-negative integer number of milliseconds.
+- Q: Where are per-artifact `capturedAt` and `durationMs` values shown in reports? → A: In both report formats. The structured JSON report stores them on each artifact-index entry, and every Markdown evidence reference displays the referenced artifact's timestamp and duration; continuity findings display timing for both artifacts.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -73,19 +79,21 @@ continuity finding names exactly two consecutive snapshot files.
 
 1. **Given** a validation that produces an error tied to a single playlist response, **When** the
    error is shown on the terminal and written to the report, **Then** both include a reference to the
-   exact archived file the error was observed in, openable by the reader.
+   exact archived file the error was observed in, openable by the reader, and the Markdown report
+   displays that artifact's capture timestamp and fetch duration.
 2. **Given** a validation that produces a warning, **When** it is shown and written, **Then** it
    carries the same kind of evidence file reference as an error.
 3. **Given** a continuity finding derived from comparing two consecutive refreshes of one playlist,
    **When** it is shown and written, **Then** it references both consecutive archived files (the
-   before and after snapshots).
+   before and after snapshots), and the Markdown report displays capture timestamp and duration for
+   each file.
 4. **Given** a finding whose evidence file could not be archived (e.g., the fetch that would have
    produced it failed), **When** the finding is reported, **Then** the tool states this explicitly
    (names the attempted resource and that no body was captured) rather than printing a missing or
    dangling path.
 5. **Given** the structured (machine-readable) report, **When** a consumer inspects any error or
-   warning, **Then** the evidence file(s) for that finding are recoverable from the report using its
-   existing fields, with no change to the report's frozen schema.
+   warning, **Then** the evidence file(s) are recoverable and each corresponding artifact-index entry
+   exposes `capturedAt` and `durationMs`.
 
 ---
 
@@ -220,8 +228,8 @@ status stream and confirm it remains exactly one JSON object per line.
 
 1. **Given** any JSON file the tool writes to disk, **When** it is opened, **Then** it is indented and
    multi-line with consistent, stable key ordering.
-2. **Given** the structured report, **When** it is pretty-printed, **Then** its logical content is
-   unchanged and it still validates against the frozen feature 001 schema.
+2. **Given** the structured report, **When** it is pretty-printed, **Then** it includes the required
+   per-artifact timing fields and validates against the updated feature 003 schema.
 3. **Given** the line-delimited `--json` status stream, **When** it is captured, **Then** it remains
    one compact JSON object per line (not pretty-printed), so line-delimited consumers are unaffected.
 
@@ -260,10 +268,10 @@ status stream and confirm it remains exactly one JSON object per line.
 - **FR-001**: This feature MUST NOT change the validation rule set, the catalog of detected findings,
   or the exit-code contract established by feature 001; existing automation built on those MUST
   continue to work unchanged.
-- **FR-002**: The structured (machine-readable) report MUST continue to validate against feature 001's
-  frozen schema — no fields added, removed, renamed, or retyped, and no field *values* repurposed
-  (including `playlists[].id`). The only change to the structured report permitted by this feature is
-  whitespace/indentation from pretty-printing (FR-026–027).
+- **FR-002**: The structured (machine-readable) report schema MUST be versioned beyond feature 001 and
+  MUST extend each artifact-index entry with `capturedAt` and `durationMs` (FR-030). Backward
+  compatibility with feature 001's schema is not required. Unrelated report fields and semantics,
+  including `playlists[].id`, MUST remain unchanged.
 - **FR-003**: Discoverable help and version output MUST document every option, including the changed
   selection options (FR-021–025). Backward-incompatible command-line changes MUST be called out as
   breaking, with migration guidance from the previous option names/behavior.
@@ -275,7 +283,9 @@ status stream and confirm it remains exactly one JSON object per line.
 - **FR-005**: Every ERROR and WARNING written to the human-readable report MUST include the same
   evidence file reference(s) as the terminal output, each rendered as an inline code span containing
   the relative archive path (e.g. `playlists/1080p_avc1/1080p_avc1_5.m3u8`) — not a Markdown link — so
-  it matches the terminal form and stays copy-pasteable and viewer-agnostic.
+  it matches the terminal form and stays copy-pasteable and viewer-agnostic. Each reference MUST also
+  display that artifact's `capturedAt` and `durationMs`; a continuity finding MUST display timing for
+  both referenced artifacts.
 - **FR-006**: A finding established by comparing two consecutive refreshes of a playlist (a continuity
   finding) MUST reference **both** archived files — the two consecutive snapshots whose comparison
   produced the finding — and MUST label them by their indexed snapshot IDs `<id>_<n-1>` and `<id>_<n>`
@@ -284,8 +294,8 @@ status stream and confirm it remains exactly one JSON object per line.
   path within the session's output folder (the archive location already produced by the tool) — e.g.
   `playlists/1080p_avc1/1080p_avc1_5.m3u8` (FR-029).
 - **FR-008**: The evidence file(s) for any ERROR or WARNING MUST be recoverable from the structured
-  report using its existing fields (the artifact index together with each finding's resource and
-  refresh information), so that no change to the frozen schema (FR-002) is required.
+  report using the artifact index together with each finding's resource and refresh information. Each
+  recovered artifact entry MUST also expose its capture timestamp and duration (FR-030).
 - **FR-009**: When an expected evidence file is unavailable (e.g., the producing fetch failed), the
   tool MUST state this explicitly — naming the attempted resource **by its playlist ID/label (never a
   raw URL)** and that no body was captured — rather than emit a missing or dangling path. When a
@@ -295,8 +305,13 @@ status stream and confirm it remains exactly one JSON object per line.
   matching `<id>_<n>.meta.json` sidecar, where `<id>` is the playlist's ID and `<n>` its 0-based
   per-playlist refresh index (FR-018a). The file name therefore equals the snapshot label used in
   findings and traces, so any evidence file is self-identifying. This refines feature 001's archive
-  layout (`playlists/<id>/NNNNNN.m3u8`); the structured report's schema is unchanged (FR-002) — only
-  the artifact-index path *values* reflect the new names.
+  layout (`playlists/<id>/NNNNNN.m3u8`); artifact-index path values reflect the new names.
+- **FR-030**: Every artifact metadata sidecar and its corresponding structured-report artifact-index
+  entry MUST contain `capturedAt` as an ISO-8601 date-time string and `durationMs` as a non-negative
+  integer number of milliseconds. `capturedAt` MUST equal the response-completion instant, after the
+  complete response body has been received. `durationMs` MUST measure elapsed time from request start
+  through that response completion, rounded to integer milliseconds. Both values MUST describe the
+  same fetch operation and MUST match between the sidecar and structured report.
 
 #### Clutter-free, descriptive, steady heartbeat output (US2)
 
@@ -406,7 +421,7 @@ shows all `normal` rows):
 - **FR-026**: Every JSON file the tool writes to disk (the structured report and any artifact metadata
   sidecars) MUST be pretty-printed: indented, multi-line, with stable, consistent key ordering.
 - **FR-027**: Pretty-printing MUST NOT alter logical JSON content; the structured report MUST remain
-  valid against feature 001's schema (FR-002).
+  valid against the updated feature 003 schema (FR-002).
 - **FR-028**: The line-delimited machine-readable status stream (`--json`) MUST remain one compact JSON
   object per line (not pretty-printed), so line-delimited consumers are unaffected.
 
@@ -423,10 +438,15 @@ shows all `normal` rows):
   file (FR-018a, FR-029).
 - **Evidence Reference**: the exact archived on-disk file(s) that constitute proof of a finding — one
   file for a single-snapshot finding, two consecutive snapshot files for a continuity finding —
-  surfaced in terminal output and the report and recoverable from the structured report via its
-  existing fields. Each file's name equals its snapshot label `<id>_<n>.m3u8` (FR-029), so it is
-  self-identifying when opened or attached to a report. Evidence is whole-file only: it names the
-  proof file(s), never an in-file line number or segment/tag locus.
+  surfaced in terminal output and the report and recoverable from the structured report. Each file's
+  name equals its snapshot label `<id>_<n>.m3u8` (FR-029), so it is self-identifying when opened or
+  attached to a report. Evidence is whole-file only: it names the proof file(s), never an in-file line
+  number or segment/tag locus.
+- **Artifact Timing**: per-fetch timing stored identically in the artifact metadata sidecar and the
+  structured report's corresponding artifact-index entry: `capturedAt` (ISO-8601 date-time) and
+  `durationMs` (non-negative integer milliseconds). `capturedAt` is response completion after the
+  complete body is received; `durationMs` spans request start through that response completion. The
+  Markdown report displays these values beside every evidence reference.
 - **Session Roster / Legend**: the mapping of each playlist ID to its full URL and role/attributes,
   printed once at session start (roster) and present in the report (legend), so all other output can
   refer to IDs without repeating URLs.
@@ -445,7 +465,8 @@ shows all `normal` rows):
 
 - **SC-001**: 100% of ERROR and WARNING items — in both terminal output and the report — include at
   least one evidence file reference; 100% of continuity findings include exactly two consecutive
-  evidence file references.
+  evidence file references. In the Markdown report, 100% of those references display matching
+  `capturedAt` and `durationMs` values.
 - **SC-002**: A reader can open the evidence file for any given error directly from the path shown,
   with no additional lookup, in under 15 seconds.
 - **SC-003**: Outside the start-of-session roster and the report's legend, the terminal body and the
@@ -465,8 +486,9 @@ shows all `normal` rows):
   `<height>p_<codecs>` form (e.g. `1080p_avc1`).
 - **SC-008**: 100% of JSON files written to disk are multi-line/indented and parse to the same logical
   content as a compact equivalent; the `--json` status stream remains exactly one object per line.
-- **SC-009**: The structured report validates against feature 001's schema with no added, removed, or
-  renamed properties; validation rules and exit codes show zero regressions versus feature 001.
+- **SC-009**: 100% of archived artifacts have matching `capturedAt` and `durationMs` values in their
+  metadata sidecar and structured-report artifact-index entry; the report validates against the
+  updated schema version. Validation rules and exit codes show zero regressions versus feature 001.
 - **SC-010**: With no flags the tool processes all renditions and shows no prompt; `--preselect
   <pattern>` applies the subset with no prompt; `--select` shows the pre-selected checklist on a
   terminal; passing `--all` is rejected as an unknown option.
@@ -491,12 +513,11 @@ shows all `normal` rows):
 - **Evidence = files from the existing artifact archive.** "Evidence" is the response file(s) the tool
   already archives for each fetch (feature 001). A continuity finding references the two consecutive
   refresh snapshots whose comparison produced it. Evidence is shown explicitly in terminal output and
-  the human-readable report and is recoverable from the structured report via its existing fields (the
-  artifact index plus each finding's resource and refresh information), so the frozen JSON schema does
-  not change. Whether to additionally surface evidence as a new first-class structured field is **out
-  of scope** here (it would break the freeze); if later desired it is a separate, versioned change.
-- **The structured (JSON) report stays frozen.** Only its on-disk *formatting* changes
-  (pretty-printing / indentation); its schema, fields, and values are unchanged from features 001/002.
+  the human-readable report and is recoverable from the structured report via its artifact index plus
+  each finding's resource and refresh information.
+- **The structured (JSON) report schema is intentionally extended.** Each artifact-index entry adds
+  `capturedAt` and `durationMs`; backward compatibility with feature 001's schema is not required.
+  Unrelated fields and semantics remain unchanged.
 - **"Pretty-format all generated JSONs" means files, not the status stream.** Pretty-printing applies
   to JSON files written to disk (the structured report and artifact metadata sidecars). The
   line-delimited `--json` status stream on stdout stays one compact object per line, because
@@ -516,15 +537,16 @@ shows all `normal` rows):
   English-only, fully usable unattended/non-interactively and scriptable; all interactive-only
   behaviors degrade gracefully to non-interactive equivalents (no color/cursor control when not a TTY
   or when `NO_COLOR`/`--no-color` is set).
-- **Out of scope**: any change to validation rules or the set of detected findings; new structured
-  report fields; segment download / bandwidth audit (still deferred); non-HLS protocols; a graphical
-  interface; localization.
+- **Out of scope**: any change to validation rules or the set of detected findings; structured-report
+  changes beyond the per-artifact timing fields in FR-030; segment download / bandwidth audit (still
+  deferred); non-HLS protocols; a graphical interface; localization.
 
 ## Dependencies
 
-- **Feature 001 (HLS Stream Validator)** — its validation rules, structured report schema, and
-  exit-code contract are fixed inputs that MUST NOT regress. Its artifact archive (the per-fetch files
-  on disk) is the source of the evidence surfaced by US1.
+- **Feature 001 (HLS Stream Validator)** — its validation rules and exit-code contract are fixed inputs
+  that MUST NOT regress. Its structured report schema is the baseline for the intentional, versioned
+  artifact-timing extension in FR-002/FR-030. Its artifact archive (the per-fetch files on disk) is the
+  source of the evidence surfaced by US1.
 - **Feature 002 (Performance and UX)** — this feature builds directly on its async session engine,
   colored/spaced output, live in-place status, Promptberry-based interactive prompt, output-directory
   handling, and live-updating reports. It reworks feature 002's alias scheme and legend into the new
