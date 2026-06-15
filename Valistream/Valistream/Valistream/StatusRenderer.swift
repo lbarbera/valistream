@@ -37,6 +37,9 @@ struct StatusRenderer: Sendable {
     private var pendingFindings: [RefreshKey: [PendingFinding]] = [:]
     private var loadedPlaylistIDs: Set<String> = []
     private var rosterIDsByURL: [URL: String] = [:]
+    /// The playlist/snapshot context from the most recently rendered trace line.
+    /// Used to avoid repeating a context header for consecutive traces in the same context.
+    private var lastTraceContext: String? = nil
 
     var playlistCount: Int {
         loadedPlaylistIDs.count
@@ -61,28 +64,37 @@ struct StatusRenderer: Sendable {
         let at = timestampedEvent.at
         switch timestampedEvent.event {
         case .stateChanged(let state):
+            lastTraceContext = nil
             renderState(state, at: at)
         case .streamClassified(let kind):
+            lastTraceContext = nil
             guard writer.mode.verbosity != .quiet else { return }
             writeBlock(at: at, lines: [
                 .init("Detected a \(kind.rawValue) stream.", role: .success),
             ])
         case .monitorStateChanged(let playlistID, let state):
+            lastTraceContext = nil
             renderMonitorState(state, playlistID: playlistID, at: at)
         case .finding(let finding, let evidence):
+            lastTraceContext = nil
             buffer(finding: finding, evidence: evidence, at: at)
         case .sessionFolderResolved(let folder):
+            lastTraceContext = nil
             guard writer.mode.verbosity != .quiet else { return }
             writeBlock(at: at, lines: [
                 .init("Ready: session output folder is \(folder.path(percentEncoded: false)).", role: .evidencePath),
             ])
         case .playlistInformation(let information):
+            lastTraceContext = nil
             renderPlaylistInformation(information, at: at)
         case .playlistLifecycle(let lifecycle):
+            lastTraceContext = nil
             renderLifecycle(lifecycle, at: at)
         case .rosterReady(let entries):
+            lastTraceContext = nil
             renderRoster(entries, at: at)
         case .refreshCompleted(let playlistID, let index, let errors, let warnings):
+            lastTraceContext = nil
             renderRefreshCompleted(
                 playlistID: playlistID,
                 index: index,
@@ -319,7 +331,62 @@ struct StatusRenderer: Sendable {
 
     private mutating func renderTrace(_ event: TraceEvent, at: Date) {
         guard writer.mode.verbosity == .verbose else { return }
-        writeBlock(at: at, lines: [.init(TraceFormatter.format(event), role: .metadata)])
+        // Extract the playlist/snapshot context label from the trace event.
+        let context = traceContext(of: event)
+        let formatted = TraceFormatter.format(event)
+        // When the context changes, prepend a context-header line (.identifier) so every
+        // diagnostic is visually nested under a clear playlist/snapshot label (T27); the trace
+        // body uses .metadata (dim), subordinate to result/finding lines (T28).
+        if context != lastTraceContext {
+            lastTraceContext = context
+            if let context {
+                writeBlock(at: at, lines: [
+                    .init(context, role: .identifier),
+                    .init(formatted, role: .metadata),
+                ])
+            } else {
+                writeBlock(at: at, lines: [.init(formatted, role: .metadata)])
+            }
+        } else {
+            writeBlock(at: at, lines: [.init(formatted, role: .metadata)])
+        }
+    }
+
+    /// Returns the playlist or snapshot context label for a trace event —
+    /// the identifier that should appear as the context header before the trace line.
+    ///
+    /// For snapshot-level events (e.g. fetch, validation, stored) this is the snapshotID;
+    /// for playlist-level events (scheduling, drift, lifecycle) it is the playlistID.
+    /// Returns `nil` only when no meaningful context is available.
+    private func traceContext(of event: TraceEvent) -> String? {
+        switch event {
+        case .fetchStarted(_, let playlistID, let refreshIndex):
+            return SnapshotID.label(id: playlistID, index: refreshIndex)
+        case .fetchIntent(let snapshotID):
+            return snapshotID
+        case .fetchResult(let snapshotID, _, _, _):
+            return snapshotID
+        case .validationPlaylistOK(let snapshotID):
+            return snapshotID
+        case .validationPlaylistFail(let snapshotID, _, _):
+            return snapshotID
+        case .validationRuleOK(let snapshotID, _):
+            return snapshotID
+        case .validationRuleFail(let snapshotID, _):
+            return snapshotID
+        case .stored(let snapshotID, _):
+            return snapshotID
+        case .refreshScheduled(let playlistID, _):
+            return playlistID
+        case .refreshDrift(let playlistID, _):
+            return playlistID
+        case .continuityCompare(_, let newerSnapshotID):
+            return newerSnapshotID
+        case .renditionAdded(let playlistID):
+            return playlistID
+        case .renditionDropped(let playlistID):
+            return playlistID
+        }
     }
 
     private func findingLines(_ pending: PendingFinding, snapshot: String) -> [TerminalWriter.Line] {

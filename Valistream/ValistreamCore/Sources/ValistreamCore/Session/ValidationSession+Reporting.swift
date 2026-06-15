@@ -93,6 +93,9 @@ extension ValidationSession {
             encryptionDetected: recordedFindings.contains { $0.ruleId == "TOOL.encryption" },
             interruption: interruption
         )
+        // `playlistTracks` is a dictionary and first-load emission is concurrent, so impose a
+        // stable order (master first, then by id) here. This makes report.md / report.json
+        // regenerate identically run-to-run and across verbosity tiers (FR-021, R12).
         let playlistInfos = playlistTracks.map { id, track in
             let stalenessEpisodes = recordedFindings.count {
                 $0.ruleId == "TOOL.staleness" && $0.severity == .error && $0.resource == track.url
@@ -108,6 +111,15 @@ extension ValidationSession {
                 stalenessEpisodes: stalenessEpisodes
             )
         }
+        .sorted { (lhs: SessionReportBuilder.PlaylistInfo, rhs: SessionReportBuilder.PlaylistInfo) in
+            if (lhs.kind == .master) != (rhs.kind == .master) { return lhs.kind == .master }
+            return lhs.id < rhs.id
+        }
+        let orderedInformation = playlistInformation
+            .sorted { (lhs: PlaylistInformation, rhs: PlaylistInformation) in
+                if (lhs.kind == .master) != (rhs.kind == .master) { return lhs.kind == .master }
+                return lhs.playlistID < rhs.playlistID
+            }
         let incidentTimeline = IncidentTimeline(
             events: recordedTimelineEvents.map { (sequence: $0.sequence, event: $0.timestampedEvent) }
         )
@@ -127,7 +139,7 @@ extension ValidationSession {
             aliasRegistry: aliasRegistry,
             artifactIndex: artifactIndex,
             timeline: incidentTimeline,
-            playlistInformation: playlistInformation,
+            playlistInformation: orderedInformation,
             timeZone: .current
         ).data(using: .utf8) {
             try? archive.writeAtomically(mdData, to: folder.appending(path: "report.md"))

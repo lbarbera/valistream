@@ -273,16 +273,16 @@ result, evidence, report files, structured output, and exit status are identical
 
 ### Tests for User Story 3 (write first; must FAIL before impl) ⚠️
 
-- [ ] T042 [P] [US3] `VerbosityEquivalenceTests` (NEW) in `Valistream/Valistream/ValistreamIntegrationTests/VerbosityEquivalenceTests.swift`
+- [X] T042 [P] [US3] `VerbosityEquivalenceTests` (NEW) in `Valistream/Valistream/ValistreamIntegrationTests/VerbosityEquivalenceTests.swift`
       — normal vs verbose for the same run produce identical findings, evidence, report files, structured
       output, and exit status (V3, T29, FR-021, SC-011).
-- [ ] T043 [P] [US3] Extend `Valistream/Valistream/ValistreamIntegrationTests/VerboseDistinctnessTests.swift`
+- [X] T043 [P] [US3] Extend `Valistream/Valistream/ValistreamIntegrationTests/VerboseDistinctnessTests.swift`
       — every diagnostic category is nested under a playlist/snapshot context with an unambiguous label and
       is visually subordinate to results/findings (T27/T28, SC-007).
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] Extend `Valistream/Valistream/Valistream/StatusRenderer.swift` — verbose tier: nest every
+- [X] T044 [US3] Extend `Valistream/Valistream/Valistream/StatusRenderer.swift` — verbose tier: nest every
       diagnostic category under playlist/snapshot context using `TraceFormatter` category labels, style it
       subordinate (metadata role), and ensure it is additive only (no change to result/evidence/report/
       structured output/exit) (T27–T29, FR-019/020/021; depends T032).

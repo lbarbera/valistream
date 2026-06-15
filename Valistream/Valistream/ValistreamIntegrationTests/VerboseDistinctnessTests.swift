@@ -109,6 +109,168 @@ struct VerboseDistinctnessTests {
 
 
 
+    // MARK: - T043: Category rendering and visual subordination
+
+    @Test("verbose trace lines contain category labels for all rendered categories")
+    func traceLinesContainCategoryLabels() async throws {
+        let events = await collectEvents(verbose: true)
+        // Collect the formatted text of each trace event.
+        var categoryLabels = Set<String>()
+        for event in events {
+            if case .trace(let traceEvent) = event {
+                let line = TraceFormatter.format(traceEvent)
+                // Category label is everything before the first ":"
+                let label = String(line.prefix(while: { $0 != ":" }))
+                if label.isEmpty == false {
+                    categoryLabels.insert(label)
+                }
+            }
+        }
+        // We expect at least: Fetch, Validation, Refresh, Compare, Stored (five categories).
+        let expectedCategories: Set<String> = ["Fetch", "Validation", "Refresh", "Compare", "Stored"]
+        let missing = expectedCategories.subtracting(categoryLabels)
+        #expect(missing.isEmpty,
+                "Missing category labels in verbose output: \(missing); found: \(categoryLabels)")
+    }
+
+    @Test("verbose trace lines are rendered nested under playlist/snapshot context (T27/T28)")
+    func traceRenderingIsNestedUnderContext() async throws {
+        let recorder = OutputRecorder()
+        let mode = TerminalOutputMode(
+            isTTY: false,
+            noColorEnv: false,
+            noColorFlag: false,
+            termIsDumb: false,
+            environment: ["LANG": "en_US.UTF-8"],
+            verbosity: .verbose
+        )
+        var renderer = StatusRenderer(
+            writer: TerminalWriter(
+                mode: mode,
+                terminalWidth: 120,
+                output: recorder.writeStandardOutput,
+                errorOutput: recorder.writeStandardError
+            ),
+            json: false,
+            timeZone: .gmt
+        )
+        let at = Date(timeIntervalSince1970: 1_750_000_000)
+        let snapshotID = "video-1080p_1"
+
+        // Emit two trace events for the same snapshot.
+        renderer.render(TimestampedEvent(at: at, event: .trace(.fetchIntent(snapshotID: snapshotID))))
+        renderer.render(TimestampedEvent(at: at, event: .trace(.validationPlaylistOK(snapshotID: snapshotID))))
+
+        let output = recorder.standardOutput
+        let lines = output.split(separator: "\n").map(String.init)
+
+        // Context header: a line containing the snapshotID must appear (T27).
+        let contextLines = lines.filter { $0.contains(snapshotID) }
+        #expect(contextLines.isEmpty == false,
+                "Context label \(snapshotID) should appear in output")
+
+        // Trace category lines must follow the context header in the rendered output (T27 nesting).
+        let fetchLineIndex  = lines.firstIndex(where: { $0.contains("Fetch:") })
+        let validLineIndex  = lines.firstIndex(where: { $0.contains("Validation:") })
+        let contextLineIndex = lines.firstIndex(where: { $0.contains(snapshotID) && !$0.contains("Fetch:") && !$0.contains("Validation:") })
+        if let ctx = contextLineIndex, let fetch = fetchLineIndex {
+            #expect(fetch > ctx, "Fetch trace line should follow the context header")
+        }
+        if let fetch = fetchLineIndex, let valid = validLineIndex {
+            #expect(valid > fetch, "Validation trace line should follow the Fetch trace line")
+        }
+        #expect(fetchLineIndex != nil, "Fetch trace line should be present")
+        #expect(validLineIndex != nil, "Validation trace line should be present")
+    }
+
+    @Test("verbose trace lines use .metadata (dim) role — subordinate to result lines")
+    func traceUsesMetadataRoleSubordinateToResults() async throws {
+        // When color is disabled, metadata-role lines carry no ANSI codes, which also
+        // means they don't carry severity-coloring (red/green/yellow) — subordinate by design.
+        let recorder = OutputRecorder()
+        let plainMode = TerminalOutputMode(
+            isTTY: false,
+            noColorEnv: true,   // disable color
+            noColorFlag: false,
+            termIsDumb: false,
+            environment: [:],
+            verbosity: .verbose
+        )
+        var renderer = StatusRenderer(
+            writer: TerminalWriter(
+                mode: plainMode,
+                terminalWidth: 120,
+                output: recorder.writeStandardOutput,
+                errorOutput: recorder.writeStandardError
+            ),
+            json: false,
+            timeZone: .gmt
+        )
+        let at = Date(timeIntervalSince1970: 1_750_000_000)
+        let snapshotID = "video-1080p_1"
+
+        renderer.render(TimestampedEvent(at: at, event: .trace(.validationPlaylistOK(snapshotID: snapshotID))))
+        renderer.render(TimestampedEvent(
+            at: at,
+            event: .refreshCompleted(playlistID: "video-1080p", index: 1, errors: 0, warnings: 0)
+        ))
+
+        let output = recorder.standardOutput
+        // In plain mode there are no ANSI escape codes at all.
+        #expect(output.contains("\u{1B}") == false,
+                "Plain output should contain no ANSI escape codes")
+        // The result line uses a success marker, trace lines do not.
+        #expect(output.contains("✓ OK") || output.contains("[OK]"),
+                "Result line should have success marker")
+        // Trace lines should NOT have success/error/warning markers.
+        let traceLines = output.split(separator: "\n").filter { $0.contains("Validation:") }
+        for line in traceLines {
+            #expect(line.contains("✓") == false && line.contains("[OK]") == false,
+                    "Trace lines should not carry result markers: \"\(line)\"")
+        }
+    }
+
+    @Test("verbose trace context header reappears after a non-trace block breaks the stream")
+    func traceContextHeaderReappearsAfterBlockBreak() async throws {
+        let recorder = OutputRecorder()
+        let mode = TerminalOutputMode(
+            isTTY: false,
+            noColorEnv: false,
+            noColorFlag: false,
+            termIsDumb: false,
+            environment: ["LANG": "en_US.UTF-8"],
+            verbosity: .verbose
+        )
+        var renderer = StatusRenderer(
+            writer: TerminalWriter(
+                mode: mode,
+                terminalWidth: 120,
+                output: recorder.writeStandardOutput,
+                errorOutput: recorder.writeStandardError
+            ),
+            json: false,
+            timeZone: .gmt
+        )
+        let at = Date(timeIntervalSince1970: 1_750_000_000)
+        let snapshotID = "video-1080p_1"
+
+        // First trace block for snapshotID — should emit context header.
+        renderer.render(TimestampedEvent(at: at, event: .trace(.fetchIntent(snapshotID: snapshotID))))
+        // Non-trace block breaks the context.
+        renderer.render(TimestampedEvent(
+            at: at,
+            event: .refreshCompleted(playlistID: "video-1080p", index: 1, errors: 0, warnings: 0)
+        ))
+        // Same snapshotID again — context header should reappear because the context was reset.
+        renderer.render(TimestampedEvent(at: at, event: .trace(.validationPlaylistOK(snapshotID: snapshotID))))
+
+        let output = recorder.standardOutput
+        // The snapshotID should appear at least twice (once as context header before each trace group).
+        let occurrences = output.components(separatedBy: snapshotID).count - 1
+        #expect(occurrences >= 2,
+                "Context label \(snapshotID) should appear at least twice in: \(output)")
+    }
+
     // MARK: - Fixtures
 
     private let masterPlaylist = """
