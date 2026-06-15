@@ -333,13 +333,13 @@ the output modes, and locate the report and evidence, with zero doc-vs-binary di
 **Purpose**: full regression, coverage/badge finalization, styling-disabled + manual acceptance, and style
 conformance across everything changed.
 
-- [ ] T051 Full regression gate: `BuildProject` with **0** navigator warnings (`XcodeListNavigatorIssues`),
+- [X] T051 Full regression gate: `BuildProject` with **0** navigator warnings (`XcodeListNavigatorIssues`),
       `swift test` (package `ValistreamCoreTests`) green, and `RunAllTests` (`Valistream` scheme incl. the
       003 guards, `CompatibilityFreezeTests`, and `VerbosityEquivalenceTests`) green (V1/V2/V3, SC-011).
-- [ ] T052 [P] Confirm every displayed `README.md` badge (license, release/version, platform/Swift)
+- [X] T052 [P] Confirm every displayed `README.md` badge (license, release/version, platform/Swift)
       reflects a current verifiable value; omit any that cannot be verified (no coverage badge this
       release — FR-029a) (SC-010, readme B2).
-- [ ] T053 [P] Styling-disabled + width validation per `specs/004-output-readability/quickstart.md`:
+- [X] T053 [P] Styling-disabled + width validation per `specs/004-output-readability/quickstart.md`:
       `NO_COLOR`/`--no-color`/`TERM=dumb`/redirect emit zero styling/cursor bytes with ASCII markers; 80- and
       120-column widths truncate nothing essential (SC-005/006, T17–T21).
 - [ ] T054 Manual acceptance with the user-supplied live "TV Nord" and VOD "NRK news" streams (conversation-
@@ -348,7 +348,7 @@ conformance across everything changed.
       A1).
 - [ ] T055 Run `specs/004-output-readability/quickstart.md` end-to-end and confirm every "Done when"
       criterion passes.
-- [ ] T056 [P] Conformance review of all new/changed files against `styleguide.md` and `unit-testing.md`;
+- [X] T056 [P] Conformance review of all new/changed files against `styleguide.md` and `unit-testing.md`;
       clear any serena `get_diagnostics_for_file` findings.
 
 ---
