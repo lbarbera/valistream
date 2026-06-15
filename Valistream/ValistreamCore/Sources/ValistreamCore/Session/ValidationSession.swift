@@ -432,6 +432,12 @@ func emit(_ event: SessionEvent, at occurrence: Date? = nil) {
         }
     }
 
+    /// The monitor state currently recorded for a playlist, or `nil` if none yet. Lets the monitor
+    /// loop (in the extension) record staleness only on a level transition.
+    func monitorState(for playlistID: String) -> MonitorState? {
+        monitorStates[playlistID]
+    }
+
     /// The fetcher this session uses (for the flow tasks wired by US1+).
     var streamFetcher: any StreamFetching {
         fetcher

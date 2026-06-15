@@ -36,6 +36,55 @@ struct LiveFaultScenarioTests {
         await harness.abortAndFinish()
     }
 
+    @Test("a permanently stalled playlist records at most one staleness finding per crossing", .timeLimit(.minutes(1)))
+    func stalenessFindingsAreBoundedPerCrossing() async {
+        let harness = LiveSessionHarness(input: media)
+        // The window never changes — a stuck stream refreshes on cadence forever.
+        harness.fetcher.timeline(media, [
+            .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
+        ])
+        harness.start()
+
+        // Far more refreshes than threshold crossings.
+        for _ in 0..<10 {
+            await harness.step(by: 6, refreshing: media)
+        }
+
+        let findings = await harness.session.recordedFindings
+        let warnings = findings.count { $0.ruleId == "TOOL.staleness" && $0.severity == .warning }
+        let errors = findings.count { $0.ruleId == "TOOL.staleness" && $0.severity == .error }
+        // Exactly one warning crossing + one error crossing — not one finding per refresh.
+        #expect(warnings == 1)
+        #expect(errors == 1)
+        #expect(findings.count { $0.ruleId == "TOOL.staleness" } == 2)
+
+        await harness.abortAndFinish()
+    }
+
+    @Test("a recovery re-arms staleness so a second stall fires again", .timeLimit(.minutes(1)))
+    func recoveryRearmsStaleness() async {
+        let harness = LiveSessionHarness(input: media)
+        // Stall to error, then the window advances once (resetting staleness), then stalls again.
+        harness.fetcher.timeline(media, [
+            .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
+            .init(at: .seconds(30), reply: .body(LivePlaylists.window(mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
+        ])
+        harness.start()
+
+        for _ in 0..<10 {
+            await harness.step(by: 6, refreshing: media)
+        }
+
+        let findings = await harness.session.recordedFindings
+        let warnings = findings.count { $0.ruleId == "TOOL.staleness" && $0.severity == .warning }
+        let errors = findings.count { $0.ruleId == "TOOL.staleness" && $0.severity == .error }
+        // Two stall episodes, each bounded to one warning + one error crossing.
+        #expect(warnings == 2)
+        #expect(errors == 2)
+
+        await harness.abortAndFinish()
+    }
+
     @Test("a media-sequence regression is reported as a continuity error", .timeLimit(.minutes(1)))
     func sequenceRegressionIsContinuityError() async {
         let harness = LiveSessionHarness(input: media)

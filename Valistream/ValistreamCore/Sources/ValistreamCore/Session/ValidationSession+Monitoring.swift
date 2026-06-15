@@ -203,10 +203,18 @@ extension ValidationSession {
         guard let violation = stalenessDetector.violation(staleFor: staleFor, targetDuration: target) else {
             return
         }
-        record(violation, resource: candidate.url, refreshIndex: refreshIndex)
         // Match the presentation ID used by every other monitoring event (FR-013-ID), not the
         // internal candidate ID.
         let presentationID = aliasRegistry.alias(for: candidate.url)?.alias ?? candidate.id
-        setMonitorState(presentationID, violation.severity == .error ? .staleError : .staleWarning)
+        let newState: MonitorState = violation.severity == .error ? .staleError : .staleWarning
+        // Record a finding only when the staleness level *changes* (monitoring → warning →
+        // error). A stuck live playlist keeps refreshing at the target cadence indefinitely, so
+        // recording every refresh would flood the findings list, JSONL log, and report. The
+        // monitor loop resets the state to `.monitoring` when content next changes, which re-arms
+        // the next crossing. Read the prior state before `setMonitorState` mutates it.
+        if monitorState(for: presentationID) != newState {
+            record(violation, resource: candidate.url, refreshIndex: refreshIndex)
+        }
+        setMonitorState(presentationID, newState)
     }
 }
