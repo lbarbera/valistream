@@ -1,9 +1,14 @@
-name: 🚀 Make release
+name: 📍 Upload release assets
 
 on:
-  push:
-    tags:
-      - 'v*' # Triggers on tags like v1.0.0
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Release name'
+        required: true
+        type: string
+  release:
+    types: [published]
 
 jobs:
   build_and_release:
@@ -32,8 +37,6 @@ jobs:
           zip -r ../../../../valistream-cli.zip ./valistream
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: valistream-cli.zip
+        run: gh release upload ${{ github.event.release.tag_name || inputs.release_name }} ./valistream-cli.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
