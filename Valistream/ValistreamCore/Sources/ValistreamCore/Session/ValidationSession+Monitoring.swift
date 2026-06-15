@@ -102,16 +102,24 @@ extension ValidationSession {
             }
 
             incrementRefreshCount(presentationID)
+            // Dedup by stable signature: a persistently failing origin returns the same delivery
+            // violation every refresh, which would otherwise flood the findings list, JSONL, and
+            // report (a failed fetch has no media, so this is the only finding minted each cycle).
+            // The message is stable, so `recordIfNew` suffices — unlike staleness, whose message
+            // embeds the live stale-seconds and so is gated on a state transition instead.
             for violation in load.deliveryViolations {
-                record(violation, resource: candidate.url, refreshIndex: refreshIndex)
+                recordIfNew(violation, resource: candidate.url, refreshIndex: refreshIndex)
             }
             var changed = false
             let findingsBefore = recordedFindings.count
 
             if let media = load.playlist?.media {
                 evaluateStructural(load: load, kind: kind, refreshIndex: refreshIndex)
+                // Same stable-signature dedup: a persistent continuity fault re-emitting an
+                // identical message each refresh collapses to one finding, while genuinely distinct
+                // faults (different sequence numbers) keep distinct signatures and are still recorded.
                 for violation in continuityChecker.check(previous: previous, current: media) {
-                    record(violation, resource: candidate.url, refreshIndex: refreshIndex)
+                    recordIfNew(violation, resource: candidate.url, refreshIndex: refreshIndex)
                 }
                 changed = media != previous
                 if changed {

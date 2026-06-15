@@ -85,6 +85,55 @@ struct LiveFaultScenarioTests {
         await harness.abortAndFinish()
     }
 
+    @Test("a persistently failing fetch records the delivery violation once, not per refresh", .timeLimit(.minutes(1)))
+    func deliveryViolationIsNotRefiredEachRefresh() async {
+        let harness = LiveSessionHarness(input: media)
+        // Loads once, then every refresh 404s with an identical delivery error.
+        harness.fetcher.timeline(media, [
+            .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
+            .init(at: .seconds(3), reply: .body("Not Found", status: 404)),
+        ])
+        harness.start()
+
+        for _ in 0..<6 {
+            await harness.step(by: 6, refreshing: media)
+        }
+
+        let findings = await harness.session.recordedFindings
+        // Six failing refreshes, one bounded delivery finding — not one per refresh.
+        #expect(findings.count { $0.ruleId == "TOOL.delivery" } == 1)
+
+        await harness.abortAndFinish()
+    }
+
+    @Test("a continuity fault repeating an identical message is recorded once", .timeLimit(.minutes(1)))
+    func repeatedContinuityFaultIsNotRefired() async {
+        let harness = LiveSessionHarness(input: media)
+        // The window oscillates seq10 ⇄ seq8, so the same "regressed from 10 to 8" fault recurs on
+        // every down-leg — a persistently broken stream re-emitting an identical violation.
+        let high = LivePlaylists.window(mediaSequence: 10, segments: ["s10.ts", "s11.ts", "s12.ts"])
+        let low = LivePlaylists.window(mediaSequence: 8, segments: ["s8.ts", "s9.ts", "s10.ts"])
+        harness.fetcher.timeline(media, [
+            .init(at: .seconds(0), reply: .body(high)),
+            .init(at: .seconds(3), reply: .body(low)),
+            .init(at: .seconds(9), reply: .body(high)),
+            .init(at: .seconds(15), reply: .body(low)),
+            .init(at: .seconds(21), reply: .body(high)),
+            .init(at: .seconds(27), reply: .body(low)),
+        ])
+        harness.start()
+
+        for _ in 0..<6 {
+            await harness.step(by: 6, refreshing: media)
+        }
+
+        let findings = await harness.session.recordedFindings
+        // The media-sequence regression recurs three times but its identical message dedups to one.
+        #expect(findings.count { $0.ruleId == "TOOL.continuity.media-sequence" } == 1)
+
+        await harness.abortAndFinish()
+    }
+
     @Test("a media-sequence regression is reported as a continuity error", .timeLimit(.minutes(1)))
     func sequenceRegressionIsContinuityError() async {
         let harness = LiveSessionHarness(input: media)
