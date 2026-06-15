@@ -18,6 +18,25 @@ struct SessionArchiveTests {
         return dir
     }
 
+    private func makeSubSecondResult() -> FetchResult {
+        FetchResult(
+            url: URL(string: "https://ex.com/v.m3u8")!,
+            body: Data("#EXTM3U\n".utf8),
+            metadata: ResponseMetadata(
+                requestHeaders: [:],
+                requestStartedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                responseEndedAt: Date(timeIntervalSince1970: 1_700_000_000.25),
+                remoteAddress: nil,
+                remotePort: nil,
+                httpStatus: 200,
+                responseHeaders: [:],
+                negotiatedProtocol: nil,
+                redirectChain: []
+            ),
+            outcome: .success
+        )
+    }
+
     private func makeResult(url: URL, body: String, status: Int = 200) -> FetchResult {
         FetchResult(
             url: url,
@@ -113,11 +132,87 @@ struct SessionArchiveTests {
             playlistID: "master"
         )
         let metaPath = archive.sessionFolder.appending(path: "playlists/master/master_0.meta.json")
-        let decoded = try Finding.jsonDecoder.decode(ArtifactRecord.self, from: Data(contentsOf: metaPath))
+        let decoded = try SessionArchive.metaDecoder.decode(ArtifactRecord.self, from: Data(contentsOf: metaPath))
         #expect(decoded.requestId == record.requestId)
         #expect(decoded.url == url)
         #expect(decoded.bodyPath == "playlists/master/master_0.m3u8")
         #expect(decoded.bodyBytes == Data("#EXTM3U\n".utf8).count)
+        #expect(decoded.durationMs == 1000)
+    }
+
+    @Test("sidecar timestamps match full ISO-8601 UTC+ms form and durationMs field is present")
+    func sidecarTimestampsAreFullISO8601UTC() async throws {
+        let tmp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let archive = try SessionArchive(sessionID: "s9", outputDir: tmp)
+        let url = URL(string: "https://ex.com/v.m3u8")!
+        try await archive.store(result: makeResult(url: url, body: "#EXTM3U\n"), playlistID: "ts")
+        let metaPath = archive.sessionFolder.appending(path: "playlists/ts/ts_0.meta.json")
+        let data = try Data(contentsOf: metaPath)
+        let anyObj = try JSONSerialization.jsonObject(with: data)
+        let obj = try #require(anyObj as? [String: Any])
+        let start = try #require(obj["requestStartedAt"] as? String)
+        let end = try #require(obj["responseEndedAt"] as? String)
+        let utcMsRegex = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00/
+        #expect(start.wholeMatch(of: utcMsRegex) != nil, "requestStartedAt must be full ISO-8601 UTC+ms")
+        #expect(end.wholeMatch(of: utcMsRegex) != nil, "responseEndedAt must be full ISO-8601 UTC+ms")
+        #expect(obj["durationMs"] != nil, "durationMs field must be present in sidecar JSON")
+    }
+
+    @Test("sub-second fetch: timestamps differ in encoded form and durationMs matches the interval")
+    func sidecarSubSecondTimestampPrecision() async throws {
+        let tmp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let archive = try SessionArchive(sessionID: "s10", outputDir: tmp)
+        try await archive.store(result: makeSubSecondResult(), playlistID: "sub")
+        let metaPath = archive.sessionFolder.appending(path: "playlists/sub/sub_0.meta.json")
+        let anyObj = try JSONSerialization.jsonObject(with: Data(contentsOf: metaPath))
+        let obj = try #require(anyObj as? [String: Any])
+        let start = try #require(obj["requestStartedAt"] as? String)
+        let end = try #require(obj["responseEndedAt"] as? String)
+        #expect(start != end, "sub-second timestamps must differ in encoded form")
+        #expect((obj["durationMs"] as? Int) == 250, "durationMs must be round(0.25 * 1000) = 250")
+    }
+
+    @Test("durationMs is zero when responseEndedAt precedes requestStartedAt (clock skew)")
+    func sidecarDurationMsIsZeroOnClockSkew() async throws {
+        let tmp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let archive = try SessionArchive(sessionID: "s11", outputDir: tmp)
+        let skewedResult = FetchResult(
+            url: URL(string: "https://ex.com/v.m3u8")!,
+            body: Data("#EXTM3U\n".utf8),
+            metadata: ResponseMetadata(
+                requestHeaders: [:],
+                requestStartedAt: Date(timeIntervalSince1970: 1_700_000_001),
+                responseEndedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                remoteAddress: nil,
+                remotePort: nil,
+                httpStatus: 200,
+                responseHeaders: [:],
+                negotiatedProtocol: nil,
+                redirectChain: []
+            ),
+            outcome: .success
+        )
+        try await archive.store(result: skewedResult, playlistID: "skew")
+        let metaPath = archive.sessionFolder.appending(path: "playlists/skew/skew_0.meta.json")
+        let anyObj = try JSONSerialization.jsonObject(with: Data(contentsOf: metaPath))
+        let obj = try #require(anyObj as? [String: Any])
+        #expect((obj["durationMs"] as? Int) == 0, "durationMs must be clamped to 0 on clock skew")
+    }
+
+    @Test("metaDecoder round-trip preserves dates to millisecond precision")
+    func sidecarMetaCoderRoundTrip() async throws {
+        let tmp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let archive = try SessionArchive(sessionID: "s12", outputDir: tmp)
+        let record = try await archive.store(result: makeSubSecondResult(), playlistID: "rt")
+        let metaPath = archive.sessionFolder.appending(path: "playlists/rt/rt_0.meta.json")
+        let decoded = try SessionArchive.metaDecoder.decode(ArtifactRecord.self, from: Data(contentsOf: metaPath))
+        #expect(abs(decoded.requestStartedAt.timeIntervalSince(record.requestStartedAt)) < 0.001)
+        #expect(abs(decoded.responseEndedAt.timeIntervalSince(record.responseEndedAt)) < 0.001)
+        #expect(decoded.durationMs == record.durationMs)
     }
 
     @Test("second store increments the snapshot index")

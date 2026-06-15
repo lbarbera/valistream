@@ -11,7 +11,12 @@ automated guard tests; human-readable styling/grouping MUST be gated off for eve
 - C3. **Evidence resolution** — `EvidenceResolver` join on URL + `refreshIndex` unchanged.
 - C4. **Structured JSON report** — schema **v1** keys, values, ordering, and pretty formatting unchanged
   (`ReportJSONSchemaTests` is the anchor).
-- C5. **Metadata sidecars** — `.meta.json` shape and pretty formatting unchanged.
+- C5. **Metadata sidecars** — `.meta.json` pretty formatting unchanged. Field set is additive: a new
+  required `durationMs` (integer milliseconds) field is added. Timestamp fields
+  (`requestStartedAt`/`responseEndedAt`) change from second-resolution UTC-`Z` to full ISO-8601 with
+  milliseconds and explicit `+00:00` offset (e.g. `2026-06-15T15:46:00.123+00:00`). Old archives lacking
+  `durationMs` or using the `Z` form will not decode against the new `ArtifactRecord` — no back-compat
+  decode path (accepted: archives are session-scoped ephemeral artifacts, not a public API).
 - C6. **Findings log** — `FindingsLog` JSON Lines (one compact object per line, `0x0A`-terminated)
   unchanged.
 - C7. **`--json` status stream** — line-delimited compact objects to stdout, no styling/blank-line grammar,

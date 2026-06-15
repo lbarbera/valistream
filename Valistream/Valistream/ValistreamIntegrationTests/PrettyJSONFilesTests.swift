@@ -164,6 +164,11 @@ struct PrettyJSONFilesTests {
                 let obj = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
                 #expect(obj["requestId"] != nil, "meta.json must have requestId")
                 #expect(obj["url"] != nil, "meta.json must have url")
+                #expect(obj["durationMs"] != nil, "meta.json must have durationMs")
+                if let ts = obj["requestStartedAt"] as? String {
+                    #expect(ts.contains("."), "requestStartedAt must include milliseconds")
+                    #expect(ts.hasSuffix("+00:00"), "requestStartedAt must use +00:00 offset, not Z")
+                }
                 checkedCount += 1
             }
         }

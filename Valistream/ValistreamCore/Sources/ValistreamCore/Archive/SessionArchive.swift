@@ -44,6 +44,29 @@ public actor SessionArchive {
     private var requestCounter = 0
     private var refreshCounts: [String: Int] = [:]
 
+    private static let metaEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes, .prettyPrinted]
+        encoder.dateEncodingStrategy = .custom { date, enc in
+            var container = enc.singleValueContainer()
+            try container.encode(ReportTimestampFormatter.format(date, timeZone: .gmt))
+        }
+        return encoder
+    }()
+
+    static let metaDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { dec in
+            let container = try dec.singleValueContainer()
+            let str = try container.decode(String.self)
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fmt.date(from: str) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO-8601 date: \(str)")
+        }
+        return decoder
+    }()
+
 
 
     // MARK: - Lifecycle
@@ -82,7 +105,7 @@ public actor SessionArchive {
         let metaRelPath = "playlists/\(playlistID)/\(snapshot).meta.json"
         try result.body.write(to: sessionFolder.appending(path: bodyRelPath))
         let record = ArtifactRecord(requestId: requestId, bodyPath: bodyRelPath, result: result)
-        let metaData = try Finding.prettyJSONEncoder.encode(record)
+        let metaData = try SessionArchive.metaEncoder.encode(record)
         try metaData.write(to: sessionFolder.appending(path: metaRelPath))
         artifactIndex.append(IndexEntry(
             requestId: requestId,

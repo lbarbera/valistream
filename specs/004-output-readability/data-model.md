@@ -191,7 +191,45 @@ Ordered, deterministic list rendered once in the Markdown report.
 
 ---
 
-## 7. Reuse — unchanged frozen types (FR-002/FR-028)
+## 7. Sidecar `.meta.json` format (bugfix: sidecar-timestamp-precision, in-scope 004)
+
+Each archived playlist fetch writes a `<snapshot>.meta.json` sidecar encoded via a dedicated
+`SessionArchive.metaEncoder` / `metaDecoder` pair (not the shared `Finding.prettyJSONEncoder`).
+
+### Timestamp fields
+
+`requestStartedAt` and `responseEndedAt` are serialized as **full ISO-8601 with milliseconds and explicit
+UTC `+00:00` offset** — e.g. `2026-06-15T15:46:00.123+00:00`. Never `Z`, never second-resolution.
+The format is produced by `ReportTimestampFormatter.format(date, timeZone: .gmt)`.
+
+Accepted format split: the machine **JSON report** `Date` fields (`startedAt`/`endedAt`/`observedAt`)
+remain `…Z` second-resolution (frozen schema v1); the **Markdown report** and **sidecar** carry
+milliseconds.
+
+### `durationMs` field
+
+A new required `Int` field `durationMs` records the network fetch latency in integer milliseconds:
+
+```
+durationMs = max(0, round((responseEndedAt − requestStartedAt) × 1000))
+```
+
+Clamped to 0 in case of clock skew (start ≥ end). Non-optional; old archives without this field will not
+decode.
+
+### Encoder / decoder
+
+| | Strategy | Notes |
+|---|---|---|
+| `metaEncoder` | `dateEncodingStrategy = .custom` via `ReportTimestampFormatter.format(_:timeZone:.gmt)` | pretty-printed, `sortedKeys`, `withoutEscapingSlashes` |
+| `metaDecoder` | `dateDecodingStrategy = .custom` via `ISO8601DateFormatter` with `[.withInternetDateTime, .withFractionalSeconds]` | parses `+HH:MM` and `Z` fractional |
+
+`Finding.prettyJSONEncoder` / `jsonEncoder` / `jsonDecoder` are **untouched** — zero blast radius on
+frozen artifacts.
+
+---
+
+## 8. Reuse — unchanged frozen types (FR-002/FR-028)
 
 `Finding` (incl. `observedAt`, `jsonEncoder`, `prettyJSONEncoder`), `EvidenceReference`/`EvidenceResolver`,
 `SnapshotID`, `AliasRegistry`/`PlaylistAlias` (ID grammar), report JSON **schema v1**, `FindingsLog` JSONL,
@@ -212,4 +250,5 @@ timeline/info models around these without altering their data or formatting.
 | `Protection`, model key metadata | FR-017b, SC-013 |
 | `IncidentTimeline`/`TimelineEntry` | FR-025c–h, SC-008a/b/c |
 | `PlaylistLifecycleEvent` | FR-025c |
+| `ArtifactRecord.durationMs`, sidecar timestamp format | bugfix sidecar-timestamp-precision (in-scope 004), C5 |
 | Reuse (frozen) | FR-002, FR-028, SC-011 |
