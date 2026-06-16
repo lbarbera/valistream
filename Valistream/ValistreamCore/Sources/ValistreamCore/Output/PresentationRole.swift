@@ -12,6 +12,7 @@ public enum TerminalANSIStyle: Sendable, Equatable {
     case yellow
     case green
     case cyan
+    case white
     case dim
 }
 
@@ -20,6 +21,7 @@ public enum PresentationRole: CaseIterable, Sendable, Equatable {
     case heading
     case identifier
     case success
+    case notice
     case progress
     case metadata
     case warning
@@ -36,6 +38,8 @@ public enum PresentationRole: CaseIterable, Sendable, Equatable {
             .cyan
         case .success:
             .green
+        case .notice:
+            .white
         case .progress, .metadata:
             .dim
         case .warning:
@@ -51,6 +55,7 @@ public enum PresentationRole: CaseIterable, Sendable, Equatable {
         case .heading: "heading"
         case .identifier: "identifier"
         case .success: "successful outcome"
+        case .notice: "attention"
         case .progress: "progress"
         case .metadata: "secondary detail"
         case .warning: "warning"

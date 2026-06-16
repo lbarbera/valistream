@@ -101,8 +101,8 @@ Hard stop if not avail! Ask user to fix.
 
 ### Implementation
 
-When promted "implement", "spawn executor" → use `/executor` subagent to do impl. 
+When promted "implement" → use "Sonnet max effort" or "GPT 5.5 high effort" subagent to do impl. 
 Pass XML handoff
 
-**When executor has finished** → code-review/validate/simplify → send to re-work if needed
+**When subagent has finished** → code-review/validate/simplify → send to re-work if needed
 Validate `Valistream` scheme build & `Valistream.xctestplan` tests pass

@@ -1,0 +1,23 @@
+<executor_handoff>
+  <system_instructions>
+    Short machine-oriented execution framing.
+    Reinforce:
+    - preserve existing patterns
+    - follow clarified scope exactly
+    - do not widen scope
+    - use the chosen implementation path only
+  </system_instructions>
+
+  <task_brief>
+    <objective>What must be achieved.</objective>
+    <why>Very short rationale so Executor understands intent.</why>
+    <repo_signals>Relevant existing types, similar implementations, and current patterns being matched.</repo_signals>
+    <scope>Concrete in-scope behavior only.</scope>
+    <implementation_path>Exactly one chosen path. No alternatives.</implementation_path>
+    <code_level_guidance>State-flow notes, suggested API shape, tricky sequencing constraints.</code_level_guidance>
+    <entry_points>Likely files/modules/components to inspect first.</entry_points>
+    <search_fallback>Repo-search strategy if filenames differ.</search_fallback>
+    <acceptance_criteria>Criteria sized to task complexity.</acceptance_criteria>
+    <validation>Brief build/test/manual verification guidance.</validation>
+  </task_brief>
+</executor_handoff>

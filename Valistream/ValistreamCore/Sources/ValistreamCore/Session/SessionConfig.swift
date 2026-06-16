@@ -116,6 +116,10 @@ public enum TraceEvent: Sendable, Equatable {
     /// The refresh scheduler decided the next sleep delay.
     case refreshScheduled(playlistID: String, delaySeconds: Double)
 
+    /// No-change reload: previous refresh returned unchanged playlist; next reload uses the
+    /// 6.3.4 half-target-duration backoff.
+    case refreshRetry(playlistID: String, delaySeconds: Double)
+
     /// The actual refresh arrived with a measurable cadence drift.
     case refreshDrift(playlistID: String, driftSeconds: Double)
 

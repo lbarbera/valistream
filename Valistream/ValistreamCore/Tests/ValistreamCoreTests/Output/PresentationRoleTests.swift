@@ -16,6 +16,7 @@ struct PresentationRoleTests {
             (PresentationRole.heading, TerminalANSIStyle.bold),
             (.identifier, .cyan),
             (.success, .green),
+            (.notice, .white),
             (.progress, .dim),
             (.metadata, .dim),
             (.warning, .yellow),

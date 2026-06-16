@@ -50,11 +50,15 @@ extension ValidationSession {
             if deadlinePassed(deadline) { break }
 
             let scheduler = RefreshScheduler(targetDuration: targetDuration)
-            let delay = refreshIndex == 0 ? scheduler.initialDelay : scheduler.nextDelay(didChange: lastChanged)
+            let didChange = refreshIndex == 0 ? true : lastChanged
+            let delay = refreshIndex == 0 ? scheduler.initialDelay : scheduler.nextDelay(didChange: didChange)
 
             if config.verboseEvents {
                 let delaySecs = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
-                emit(.trace(.refreshScheduled(playlistID: presentationID, delaySeconds: delaySecs)))
+                let event: TraceEvent = didChange
+                    ? .refreshScheduled(playlistID: presentationID, delaySeconds: delaySecs)
+                    : .refreshRetry(playlistID: presentationID, delaySeconds: delaySecs)
+                emit(.trace(event))
             }
 
             do {

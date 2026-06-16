@@ -17,6 +17,11 @@ struct TerminalWriter: Sendable {
     // MARK: - Nested types
 
     struct Line: Sendable {
+        struct Segment: Sendable {
+            let text: String
+            let role: PresentationRole
+        }
+
         let text: String
         let role: PresentationRole
         let wholeLineTint: Bool
@@ -24,19 +29,22 @@ struct TerminalWriter: Sendable {
         /// When `true`, this line is rendered without a leading timestamp bracket.
         /// Used for quiet-mode evidence continuations that must directly follow a finding line.
         let noTimestamp: Bool
+        let lead: Segment?
 
         init(
             _ text: String,
             role: PresentationRole = .metadata,
             wholeLineTint: Bool = false,
             at: Date? = nil,
-            noTimestamp: Bool = false
+            noTimestamp: Bool = false,
+            lead: Segment? = nil
         ) {
             self.text = text
             self.role = role
             self.wholeLineTint = wholeLineTint
             self.at = at
             self.noTimestamp = noTimestamp
+            self.lead = lead
         }
     }
 
@@ -104,13 +112,14 @@ struct TerminalWriter: Sendable {
     func writeBlock(
         at: Date,
         groups: [[Line]],
-        timeZone: TimeZone = .autoupdatingCurrent
+        timeZone: TimeZone = .autoupdatingCurrent,
+        tight: Bool = false
     ) {
         let nonEmptyGroups = groups.filter { $0.isEmpty == false }
         guard nonEmptyGroups.isEmpty == false else { return }
         let separator = state.withLock { state in
             defer { state.hasWrittenBlock = true }
-            return state.hasWrittenBlock ? "\n" : ""
+            return tight ? "" : (state.hasWrittenBlock ? "\n" : "")
         }
         let block = nonEmptyGroups.map { group in
             group.flatMap { line in
@@ -157,18 +166,27 @@ struct TerminalWriter: Sendable {
         let firstPrefix = timestamp + " "
         let continuation = mode.glyphStyle == .unicode ? "  ↳ " : "  -> "
         let continuationPrefix = timestamp + continuation
+        let leadWidth = line.lead.map { $0.text.count + 1 } ?? 0
         let chunks = wrap(
             line.text,
-            firstWidth: terminalWidth - firstPrefix.count,
+            firstWidth: terminalWidth - firstPrefix.count - leadWidth,
             continuationWidth: terminalWidth - continuationPrefix.count
         )
 
         return chunks.enumerated().map { index, chunk in
             let prefix = index == 0 ? firstPrefix : continuationPrefix
-            let plain = prefix + chunk
+            let lead = index == 0 ? line.lead : nil
+            let leadText = lead.map { $0.text + " " } ?? ""
+            let plain = prefix + leadText + chunk
             guard mode.colorEnabled else { return plain }
             if line.wholeLineTint {
                 return apply(style: line.role.ansiStyle, to: plain)
+            }
+            if let lead {
+                return prefix
+                    + apply(style: lead.role.ansiStyle, to: lead.text)
+                    + " "
+                    + apply(style: line.role.ansiStyle, to: chunk)
             }
             return prefix + apply(style: line.role.ansiStyle, to: chunk)
         }
@@ -228,6 +246,7 @@ struct TerminalWriter: Sendable {
         case .yellow: "33"
         case .green: "32"
         case .cyan: "36"
+        case .white: "37"
         case .dim: "90"
         }
         return "\u{1B}[\(code)m\(text)\u{1B}[0m"
