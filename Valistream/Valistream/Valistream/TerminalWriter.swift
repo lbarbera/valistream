@@ -153,6 +153,10 @@ struct TerminalWriter: Sendable {
         mode.glyphStyle == .unicode ? "✓ OK" : "[OK]"
     }
 
+    func holdMarker() -> String {
+        mode.glyphStyle == .unicode ? "↻ HOLD" : "[HOLD]"
+    }
+
 
 
     // MARK: - Private

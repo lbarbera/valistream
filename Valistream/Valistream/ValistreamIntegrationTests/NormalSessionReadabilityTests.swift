@@ -20,7 +20,7 @@ struct NormalSessionReadabilityTests {
 
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video", index: 0, errors: 0, warnings: 0)
+            event: .refreshCompleted(playlistID: "video", index: 0, errors: 0, warnings: 0, hold: nil)
         ))
         renderer.render(TimestampedEvent(at: at, event: .finding(
             finding,
@@ -28,7 +28,7 @@ struct NormalSessionReadabilityTests {
         )))
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video", index: 1, errors: 0, warnings: 1)
+            event: .refreshCompleted(playlistID: "video", index: 1, errors: 0, warnings: 1, hold: nil)
         ))
 
         let output = recorder.standardOutput
@@ -104,7 +104,7 @@ struct NormalSessionReadabilityTests {
         )))
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video", index: 0, errors: 0, warnings: 0)
+            event: .refreshCompleted(playlistID: "video", index: 0, errors: 0, warnings: 0, hold: nil)
         ))
 
         let bannedTerms = [
@@ -115,6 +115,45 @@ struct NormalSessionReadabilityTests {
         for term in bannedTerms {
             #expect(output.localizedCaseInsensitiveContains(term) == false)
         }
+    }
+
+    @Test(
+        "a healthy no-change refresh renders a white HOLD line with the waited and retry seconds",
+        arguments: [
+            (environment: ["LANG": "en_US.UTF-8"], marker: "↻ HOLD"),
+            (environment: [:], marker: "[HOLD]"),
+        ]
+    )
+    func holdLineUsesGlyphAppropriateMarker(environment: [String: String], marker: String) {
+        let recorder = OutputRecorder()
+        let mode = TerminalOutputMode(
+            isTTY: false,
+            noColorEnv: false,
+            noColorFlag: false,
+            termIsDumb: false,
+            environment: environment,
+            verbosity: .normal
+        )
+        var renderer = StatusRenderer(
+            writer: TerminalWriter(
+                mode: mode,
+                terminalWidth: 120,
+                output: recorder.writeStandardOutput,
+                errorOutput: recorder.writeStandardError
+            ),
+            json: false,
+            timeZone: .gmt
+        )
+        let at = Date(timeIntervalSince1970: 1_750_000_000)
+        let hold = RefreshHold(waited: .seconds(4), nextRetry: .seconds(2))
+
+        renderer.render(TimestampedEvent(
+            at: at,
+            event: .refreshCompleted(playlistID: "video", index: 2, errors: 0, warnings: 0, hold: hold)
+        ))
+
+        let output = recorder.standardOutput
+        #expect(output.contains("\(marker) Refreshed video_2: didn't change after 4s -> re-try in 2s"))
     }
 
     @Test("plain heartbeat stays transient and emits no persistent progress")

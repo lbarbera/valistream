@@ -164,11 +164,17 @@ extension ValidationSession {
             let findingsThisRefresh = recordedFindings.count - findingsBefore
             let errorsThisRefresh = recordedFindings.suffix(findingsThisRefresh).count { $0.severity == .error }
             let warningsThisRefresh = recordedFindings.suffix(findingsThisRefresh).count { $0.severity == .warning }
+            let hold: RefreshHold? = (changed == false
+                && errorsThisRefresh == 0 && warningsThisRefresh == 0
+                && monitorState(for: presentationID) == .monitoring)
+                ? RefreshHold(waited: delay, nextRetry: scheduler.nextDelay(didChange: false))
+                : nil
             emit(.refreshCompleted(
                 playlistID: presentationID,
                 index: refreshIndex,
                 errors: errorsThisRefresh,
-                warnings: warningsThisRefresh
+                warnings: warningsThisRefresh,
+                hold: hold
             ))
 
             emit(.activity(ActivityProgress(

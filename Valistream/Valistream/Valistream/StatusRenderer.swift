@@ -83,12 +83,13 @@ struct StatusRenderer: Sendable {
             renderLifecycle(lifecycle, at: at)
         case .rosterReady(let entries):
             renderRoster(entries, at: at)
-        case .refreshCompleted(let playlistID, let index, let errors, let warnings):
+        case .refreshCompleted(let playlistID, let index, let errors, let warnings, let hold):
             renderRefreshCompleted(
                 playlistID: playlistID,
                 index: index,
                 errors: errors,
                 warnings: warnings,
+                hold: hold,
                 at: at
             )
         case .trace(let traceEvent):
@@ -118,7 +119,7 @@ struct StatusRenderer: Sendable {
             }
         case .rosterReady(let entries):
             writer.writeToStderr("Playlists: \(entries.count)")
-        case .refreshCompleted(let playlistID, let index, let errors, let warnings):
+        case .refreshCompleted(let playlistID, let index, let errors, let warnings, _):
             writer.writeToStderr(
                 "\(SnapshotID.label(id: playlistID, index: index)) — \(warnings) WARN, \(errors) ERROR"
             )
@@ -297,21 +298,29 @@ struct StatusRenderer: Sendable {
         index: Int,
         errors: Int,
         warnings: Int,
+        hold: RefreshHold?,
         at: Date
     ) {
         guard writer.mode.verbosity != .quiet || errors > 0 || warnings > 0 else { return }
         let snapshot = SnapshotID.label(id: playlistID, index: index)
         let severity: Finding.Severity = errors > 0 ? .error : (warnings > 0 ? .warning : .info)
         let result: String
-        if errors == 0 && warnings == 0 {
+        let role: PresentationRole
+        if let hold {
+            result = "\(writer.holdMarker()) Refreshed \(snapshot): didn't change after "
+                + "\(seconds(hold.waited))s -> re-try in \(seconds(hold.nextRetry))s"
+            role = .notice
+        }
+        else if errors == 0 && warnings == 0 {
             result = "\(writer.successMarker()) Refreshed \(snapshot): no findings."
+            role = .success
         }
         else {
             result = "\(writer.marker(for: severity)) Refreshed \(snapshot): "
                 + "\(warnings) warning\(warnings == 1 ? "" : "s"), "
                 + "\(errors) error\(errors == 1 ? "" : "s")."
+            role = errors > 0 ? .error : .warning
         }
-        let role: PresentationRole = errors > 0 ? .error : (warnings > 0 ? .warning : .success)
         var lines = [TerminalWriter.Line(result, role: role, wholeLineTint: true)]
         let findings = pendingFindings.removeValue(forKey: RefreshKey(playlistID: playlistID, index: index)) ?? []
         lines.append(contentsOf: findings.flatMap { findingLines($0, snapshot: snapshot) })

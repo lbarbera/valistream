@@ -25,7 +25,7 @@ struct BlankLineGroupingTests {
         )))
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video_1080p", index: 1, errors: 0, warnings: 1)
+            event: .refreshCompleted(playlistID: "video_1080p", index: 1, errors: 0, warnings: 1, hold: nil)
         ))
         renderer.render(TimestampedEvent(at: at, event: .playlistLifecycle(
             PlaylistLifecycleEvent(playlistID: "video_1080p", at: at, kind: .recovered)

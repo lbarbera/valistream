@@ -134,6 +134,21 @@ public enum TraceEvent: Sendable, Equatable {
 }
 
 /// An event emitted on the session's live event stream, consumed by the CLI (FR-009).
+/// The wait that preceded a no-change refresh, and the scheduled retry delay that follows it.
+///
+/// Carried by `SessionEvent.refreshCompleted` when a refresh found identical media while the
+/// playlist remains healthy (RFC 8216 §6.3.4 cadence) — distinct from a stale playlist, which
+/// already escalated to a warning/error finding.
+public struct RefreshHold: Sendable, Equatable {
+    public let waited: Duration
+    public let nextRetry: Duration
+
+    public init(waited: Duration, nextRetry: Duration) {
+        self.waited = waited
+        self.nextRetry = nextRetry
+    }
+}
+
 public enum SessionEvent: Sendable {
     case stateChanged(SessionState)
     case streamClassified(StreamKind)
@@ -157,7 +172,7 @@ public enum SessionEvent: Sendable {
     case rosterReady([RosterEntry])
 
     /// Fired once per completed refresh cycle for a playlist (normal+ tier, FR-015a).
-    case refreshCompleted(playlistID: String, index: Int, errors: Int, warnings: Int)
+    case refreshCompleted(playlistID: String, index: Int, errors: Int, warnings: Int, hold: RefreshHold?)
 
     /// A verbose-tier action trace (emitted only when `SessionConfig.verboseEvents == true`, D9).
     case trace(TraceEvent)

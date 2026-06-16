@@ -29,7 +29,7 @@ struct QuietModeFindingsTests {
         ))
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video", index: 0, errors: 0, warnings: 0)
+            event: .refreshCompleted(playlistID: "video", index: 0, errors: 0, warnings: 0, hold: nil)
         ))
         renderer.render(TimestampedEvent(
             at: at,
@@ -62,7 +62,7 @@ struct QuietModeFindingsTests {
         ))
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video", index: 1, errors: 0, warnings: 1)
+            event: .refreshCompleted(playlistID: "video", index: 1, errors: 0, warnings: 1, hold: nil)
         ))
         renderer.render(TimestampedEvent(
             at: at,

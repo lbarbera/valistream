@@ -247,7 +247,7 @@ struct VerboseDistinctnessTests {
         renderer.render(TimestampedEvent(at: at, event: .trace(.validationPlaylistOK(snapshotID: "video_1"))))
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video", index: 1, errors: 0, warnings: 0)
+            event: .refreshCompleted(playlistID: "video", index: 1, errors: 0, warnings: 0, hold: nil)
         ))
 
         let output = recorder.standardOutput
@@ -284,7 +284,7 @@ struct VerboseDistinctnessTests {
         renderer.render(TimestampedEvent(at: at, event: .trace(.validationPlaylistOK(snapshotID: snapshotID))))
         renderer.render(TimestampedEvent(
             at: at,
-            event: .refreshCompleted(playlistID: "video-1080p", index: 1, errors: 0, warnings: 0)
+            event: .refreshCompleted(playlistID: "video-1080p", index: 1, errors: 0, warnings: 0, hold: nil)
         ))
         renderer.render(TimestampedEvent(
             at: at,

@@ -48,7 +48,8 @@ struct IncidentTimelineTests {
                         playlistID: "video",
                         index: 1,
                         errors: 0,
-                        warnings: 0
+                        warnings: 0,
+                        hold: nil
                     )
                 )
             ),
