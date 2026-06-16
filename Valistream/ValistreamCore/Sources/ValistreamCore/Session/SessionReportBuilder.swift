@@ -221,10 +221,14 @@ public struct SessionReportBuilder: Sendable {
         md += "| Low-Latency HLS | \(session.lowLatencyDetected ? "detected" : "not detected") |\n"
         md += "| Encryption | \(session.encryptionDetected ? "detected" : "not detected") |\n\n"
 
+        // Encryption-info findings are diagnostic noise for a human reader — they are dropped
+        // from the markdown body and Summary counts, but remain in report.json (TOOL.encryption).
+        let shown = findings.filter { $0.ruleId != "TOOL.encryption" }
+
         // ── Summary ─────────────────────────────────────────────────────────────────
-        let errors = findings.count { $0.severity == .error }
-        let warnings = findings.count { $0.severity == .warning }
-        let infos = findings.count { $0.severity == .info }
+        let errors = shown.count { $0.severity == .error }
+        let warnings = shown.count { $0.severity == .warning }
+        let infos = shown.count { $0.severity == .info }
         let refreshes = playlists.map(\.refreshCount).max() ?? 0
         let outcomeText: String
         switch session.state {
@@ -243,6 +247,7 @@ public struct SessionReportBuilder: Sendable {
         md += "- Refreshes: \(refreshes)\n\n"
 
         // ── Incident Timeline ────────────────────────────────────────────────────────
+        let findingsByID = Dictionary(shown.map { ($0.id, $0) }, uniquingKeysWith: { existing, _ in existing })
         md += "## Incident Timeline\n\n"
         if timeline.entries.isEmpty {
             md += "_No incidents recorded._\n\n"
@@ -260,7 +265,9 @@ public struct SessionReportBuilder: Sendable {
                     let findingID = anchor.hasPrefix("finding-")
                         ? String(anchor.dropFirst("finding-".count))
                         : anchor
-                    md += "- \(prefix) \(entry.summary) — [Finding \(findingID)](#\(anchor))\n"
+                    let who = findingsByID[findingID].flatMap { aliasRegistry.alias(for: $0.resource)?.alias }
+                        ?? entry.summary
+                    md += "- \(prefix) \(who) — [Finding \(findingID)](#\(anchor))\n"
                 } else {
                     md += "- \(prefix) \(entry.summary)\n"
                 }
@@ -268,73 +275,48 @@ public struct SessionReportBuilder: Sendable {
             md += "\n"
         }
 
-        // ── Findings ─────────────────────────────────────────────────────────────────
+        // ── Per-playlist blocks ─────────────────────────────────────────────────────
         let resolver = EvidenceResolver()
-        if findings.isEmpty == false {
-            md += "## Findings\n\n"
-            let bySeverity = Dictionary(grouping: findings, by: \.severity)
-            for severity in [Finding.Severity.error, .warning, .info] {
-                guard let group = bySeverity[severity], group.isEmpty == false else { continue }
-                let callout: String
-                let emoji: String
-                let label: String
-                switch severity {
-                case .error:
-                    callout = "> [!CAUTION]"
-                    emoji = "🔴"
-                    label = "Error"
-                case .warning:
-                    callout = "> [!WARNING]"
-                    emoji = "🟡"
-                    label = "Warning"
-                case .info:
-                    callout = ""
-                    emoji = "🔵"
-                    label = "Info"
-                }
-                md += "### \(emoji) \(label)\n\n"
-                if callout.isEmpty == false {
-                    md += "\(callout)\n> \(group.count) \(label.lowercased())\(group.count == 1 ? "" : "s") detected.\n\n"
-                }
-                let byCategory = Dictionary(grouping: group, by: \.category)
-                for (category, categoryFindings) in byCategory.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
-                    md += "**\(category.rawValue)**\n\n"
-                    for finding in categoryFindings {
-                        let id = aliasRegistry.alias(for: finding.resource)?.alias
-                            ?? finding.resource.lastPathComponent
-                        // Heading acts as GitHub anchor: #### Finding f-error → #finding-f-error
-                        md += "#### Finding \(finding.id)\n\n"
-                        md += "- Rule: `\(finding.ruleId)`\n"
-                        md += "- Playlist: `\(id)`\n"
-                        md += "- Observed: \(ReportTimestampFormatter.format(finding.observedAt, timeZone: timeZone))\n"
-                        md += "- Message: \(finding.message)\n"
-                        if severity != .info {
-                            let reference = evidenceByFindingID[finding.id] ?? resolver.resolve(
-                                finding,
-                                aliases: aliasRegistry,
-                                artifactIndex: artifactIndex,
-                                fallbackID: id
-                            )
-                            md += "- Evidence: \(markdownEvidence(reference))\n"
-                        }
-                        md += "\n"
-                    }
-                }
-            }
+        let infoByID = Dictionary(playlistInformation.map { ($0.playlistID, $0) }, uniquingKeysWith: { existing, _ in existing })
+        let findingsByURL = Dictionary(grouping: shown, by: \.resource)
+        let ordered = playlists.enumerated().sorted {
+            (roleRank(for: $0.element), $0.offset) < (roleRank(for: $1.element), $1.offset)
+        }.map(\.element)
+        for playlist in ordered {
+            let blockFindings = (findingsByURL[playlist.url] ?? []).sorted { $0.id < $1.id }
+            md += playlistBlock(
+                for: playlist,
+                information: infoByID[playlist.id],
+                findings: blockFindings,
+                aliasRegistry: aliasRegistry,
+                evidenceByFindingID: evidenceByFindingID,
+                artifactIndex: artifactIndex,
+                resolver: resolver,
+                timeZone: timeZone
+            )
         }
 
-        // ── Playlist Information ──────────────────────────────────────────────────────
-        if playlistInformation.isEmpty == false {
-            md += "## Playlist Information\n\n"
-            for information in playlistInformation {
-                let fieldGroups = PlaylistInfoFormatter.groups(for: information)
-                for group in fieldGroups {
-                    md += "### \(group.title)\n\n"
-                    for field in group.fields {
-                        md += "- \(field.label): \(field.value)\n"
-                    }
-                    md += "\n"
-                }
+        // Findings can reference a resource that never finished loading (e.g. HTTP 404 on the very
+        // first fetch), so it never enters `playlists` and gets no per-playlist block. Surface them
+        // in a dedicated section so no shown finding silently vanishes from report.md.
+        let trackedURLs = Set(playlists.map(\.url))
+        let orphanedFindings = shown
+            .filter { trackedURLs.contains($0.resource) == false }
+            .sorted { $0.id < $1.id }
+        if orphanedFindings.isEmpty == false {
+            md += "## ⚠️ Unresolved Findings\n\n"
+            md += "_Findings against resources that never loaded._\n\n"
+            for finding in orphanedFindings {
+                let fallbackID = aliasRegistry.alias(for: finding.resource)?.alias ?? "unreachable"
+                md += findingSubsection(
+                    finding,
+                    fallbackID: fallbackID,
+                    aliasRegistry: aliasRegistry,
+                    evidenceByFindingID: evidenceByFindingID,
+                    artifactIndex: artifactIndex,
+                    resolver: resolver,
+                    timeZone: timeZone
+                )
             }
         }
 
@@ -353,31 +335,6 @@ public struct SessionReportBuilder: Sendable {
             md += "\n"
         }
 
-        // ── Session Details ───────────────────────────────────────────────────────────
-        md += "## Session Details\n\n"
-        if playlists.isEmpty == false {
-            let findingsByResource = Dictionary(grouping: findings, by: \.resource)
-            for playlist in playlists {
-                let id = aliasRegistry.alias(for: playlist.url)?.alias ?? playlist.id
-                md += "#### `\(id)`\n\n"
-                let status = playlist.selected
-                    ? "selected"
-                    : (playlist.excludedByChoice ? "excluded" : "not selected")
-                md += "- Status: \(status)\n"
-                md += "- Refreshes: \(playlist.refreshCount)\n"
-                if playlist.stalenessEpisodes > 0 {
-                    md += "- Staleness episodes: \(playlist.stalenessEpisodes)\n"
-                }
-                let recent = (findingsByResource[playlist.url] ?? []).suffix(5)
-                if recent.isEmpty == false {
-                    md += "- Recent finding IDs: \(recent.map { "`\($0.id)`" }.joined(separator: ", "))\n"
-                }
-                md += "\n"
-            }
-        } else {
-            md += "_No playlists._\n\n"
-        }
-
         return md
     }
 
@@ -388,7 +345,7 @@ public struct SessionReportBuilder: Sendable {
     private func markdownEvidence(_ reference: EvidenceReference) -> String {
         switch reference {
         case .single(let path):
-            return "evidence: `\(path)`"
+            return "`\(path)`"
         case .pair(let older, let newer):
             var parts = [older, newer].compactMap { $0 }.map { "`\($0)`" }
             if older == nil {
@@ -398,10 +355,154 @@ public struct SessionReportBuilder: Sendable {
                 parts.append("newer snapshot unavailable")
             }
 
-            return "evidence: " + parts.joined(separator: ", ")
+            return parts.joined(separator: ", ")
         case .unavailable(let id):
             return "no body captured for \(id)"
         }
+    }
+
+    /// Per-playlist health verdict derived from that playlist's own (non-encryption) findings.
+    private enum Verdict {
+        case healthy
+        case needsAttention
+        case problems
+
+        var glyph: String {
+            switch self {
+            case .healthy: "✅"
+            case .needsAttention: "⚠️"
+            case .problems: "🔴"
+            }
+        }
+
+        var word: String {
+            switch self {
+            case .healthy: "Healthy"
+            case .needsAttention: "Needs attention"
+            case .problems: "Problems"
+            }
+        }
+    }
+
+    /// Sort key for playlist ordering: master first, then variant, audio, subtitles, iframe.
+    private func roleRank(for playlist: PlaylistInfo) -> Int {
+        guard playlist.kind != .master else { return 0 }
+        switch playlist.role {
+        case .variant: return 1
+        case .audio: return 2
+        case .subtitles: return 3
+        case .iframe: return 4
+        case nil: return 5
+        }
+    }
+
+    /// Renders one self-contained "## <glyph> <id>" block for a playlist: heading, italic
+    /// subtitle, flat property bullets, an optional Timing subsection, and a per-playlist
+    /// Findings subsection when that playlist has at least one (non-encryption) finding.
+    private func playlistBlock(
+        for playlist: PlaylistInfo,
+        information: PlaylistInformation?,
+        findings: [Finding],
+        aliasRegistry: AliasRegistry,
+        evidenceByFindingID: [String: EvidenceReference],
+        artifactIndex: [SessionArchive.IndexEntry],
+        resolver: EvidenceResolver,
+        timeZone: TimeZone
+    ) -> String {
+        let isMaster = playlist.kind == .master
+        let displayID = aliasRegistry.alias(for: playlist.url)?.alias ?? playlist.id
+        let errors = findings.count { $0.severity == .error }
+        let warnings = findings.count { $0.severity == .warning }
+        let verdict: Verdict
+        if errors > 0 {
+            verdict = .problems
+        } else if warnings > 0 {
+            verdict = .needsAttention
+        } else {
+            verdict = .healthy
+        }
+
+        var md = "## \(verdict.glyph) \(displayID)" + (isMaster ? " · Master manifest" : "") + "\n"
+
+        var subtitleParts = [verdict.word]
+        if isMaster {
+            subtitleParts.append("\(information?.master?.variantCount ?? 0) variants")
+        } else if let playlistType = information?.media?.playlistType {
+            subtitleParts.append(playlistType)
+        }
+        subtitleParts.append("\(playlist.refreshCount) refresh\(playlist.refreshCount == 1 ? "" : "es")")
+        if warnings > 0 {
+            subtitleParts.append("\(warnings) warning\(warnings == 1 ? "" : "s")")
+        }
+        if errors > 0 {
+            subtitleParts.append("\(errors) error\(errors == 1 ? "" : "s")")
+        }
+        if playlist.selected == false {
+            subtitleParts.append(playlist.excludedByChoice ? "excluded" : "not selected")
+        }
+        md += "*\(subtitleParts.joined(separator: " · "))*\n"
+
+        for field in PlaylistInfoFormatter.reportHeaderFields(for: information) {
+            md += "- \(field.label): \(field.value)\n"
+        }
+
+        if let timingFields = PlaylistInfoFormatter.reportTimingFields(for: information) {
+            md += "### Timing\n"
+            for field in timingFields {
+                md += "- \(field.label): \(field.value)\n"
+            }
+        }
+
+        if findings.isEmpty == false {
+            md += "### Findings\n\n"
+            for finding in findings {
+                md += findingSubsection(
+                    finding,
+                    fallbackID: displayID,
+                    aliasRegistry: aliasRegistry,
+                    evidenceByFindingID: evidenceByFindingID,
+                    artifactIndex: artifactIndex,
+                    resolver: resolver,
+                    timeZone: timeZone
+                )
+            }
+        }
+
+        md += "\n"
+        return md
+    }
+
+    /// Renders one `#### <glyph> Finding <id>` subsection. Shared by per-playlist `### Findings`
+    /// blocks and the `## Unresolved Findings` catch-all so the header slug stays `finding-<id>`
+    /// and Incident Timeline links resolve regardless of where the finding is homed.
+    private func findingSubsection(
+        _ finding: Finding,
+        fallbackID: String,
+        aliasRegistry: AliasRegistry,
+        evidenceByFindingID: [String: EvidenceReference],
+        artifactIndex: [SessionArchive.IndexEntry],
+        resolver: EvidenceResolver,
+        timeZone: TimeZone
+    ) -> String {
+        let sevGlyph: String
+        switch finding.severity {
+        case .error: sevGlyph = "🔴"
+        case .warning: sevGlyph = "🟡"
+        case .info: sevGlyph = "🔵"
+        }
+        var md = "#### \(sevGlyph) Finding \(finding.id)\n\n"
+        md += "- Severity: \(finding.severity.rawValue.capitalized)\n"
+        md += "- Rule: `\(finding.ruleId)`\n"
+        md += "- Message: \(finding.message)\n"
+        md += "- Observed: \(ReportTimestampFormatter.format(finding.observedAt, timeZone: timeZone))\n"
+        let reference = evidenceByFindingID[finding.id] ?? resolver.resolve(
+            finding,
+            aliases: aliasRegistry,
+            artifactIndex: artifactIndex,
+            fallbackID: fallbackID
+        )
+        md += "- Evidence: \(markdownEvidence(reference))\n\n"
+        return md
     }
 
     private func buildReport(

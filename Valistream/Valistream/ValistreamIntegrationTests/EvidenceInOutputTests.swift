@@ -70,7 +70,9 @@ struct EvidenceInOutputTests {
         )
         let markdown = SessionReportBuilder().buildMarkdown(
             session: snapshot,
-            playlists: [],
+            playlists: [
+                .init(id: "video_1", kind: .media, role: .variant, url: playlistURL, selected: true, refreshCount: 2),
+            ],
             findings: findings,
             aliasRegistry: aliases,
             artifactIndex: artifactIndex
@@ -82,6 +84,8 @@ struct EvidenceInOutputTests {
                 #expect(markdown.contains("`\(path)`"))
             }
         }
+        // Evidence renders as a single inline code span — never a doubled "evidence: evidence:" prefix.
+        #expect(markdown.contains("evidence: evidence:") == false)
         let continuityLine = try #require(terminalLines.last)
         #expect(continuityLine.ranges(of: ".m3u8").count == 2)
         let unavailableURL = URL(string: "https://example.com/live/missing.m3u8")!

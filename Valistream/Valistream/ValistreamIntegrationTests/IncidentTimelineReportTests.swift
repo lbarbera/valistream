@@ -18,11 +18,16 @@ struct IncidentTimelineReportTests {
 
         #expect(first == second)
         #expect(first.contains("## Incident Timeline"))
-        #expect(first.contains("## Playlist Information"))
+        #expect(first.contains("## Playlist Information") == false)
+        #expect(first.contains("\n## Findings") == false)
+        #expect(first.contains("## Session Details") == false)
         #expect(first.contains("[Finding f1](#finding-f1)"))
+        // The 404'd video never enters `playlists`, so its finding surfaces in the catch-all
+        // section rather than a per-playlist block — but stays reachable from the timeline link.
+        #expect(first.contains("## ⚠️ Unresolved Findings"))
         #expect(first.components(separatedBy: "HTTP status 404").count - 1 == 1)
         #expect(first.components(separatedBy: "no body captured").count - 1 == 1)
-        let timeline = try section("## Incident Timeline", before: "## Findings", in: first)
+        let timeline = try section("## Incident Timeline", before: "## ", in: first)
         #expect(timeline.contains("Refreshed") == false)
         #expect(timeline.contains("HTTP status 404") == false)
         #expect(timeline.contains("no body captured") == false)
@@ -64,7 +69,7 @@ struct IncidentTimelineReportTests {
 
     private func section(_ heading: String, before nextHeading: String, in markdown: String) throws -> String {
         let start = try #require(markdown.range(of: heading))
-        let suffix = markdown[start.lowerBound...]
+        let suffix = markdown[start.upperBound...]
         let end = try #require(suffix.range(of: nextHeading))
         return String(suffix[..<end.lowerBound])
     }

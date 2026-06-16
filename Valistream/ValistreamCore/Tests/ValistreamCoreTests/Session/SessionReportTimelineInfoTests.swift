@@ -55,10 +55,8 @@ struct SessionReportTimelineInfoTests {
         let sections = [
             "## Summary",
             "## Incident Timeline",
-            "## Findings",
-            "## Playlist Information",
+            "## 🔴 master · Master manifest",
             "## Legend",
-            "## Session Details",
         ]
         let ranges = try sections.map { heading in
             try #require(markdown.range(of: heading), "Missing \(heading)")
@@ -66,18 +64,23 @@ struct SessionReportTimelineInfoTests {
         #expect(zip(ranges, ranges.dropFirst()).allSatisfy { $0.lowerBound < $1.lowerBound })
         #expect(markdown.range(of: "## Summary")?.lowerBound == markdown.range(of: sections[0])?.lowerBound)
         #expect(markdown.contains("2025-06-15T15:06:40.123+00:00"))
-        #expect(markdown.contains("> [!CAUTION]"))
-        #expect(markdown.contains("> [!WARNING]"))
-        #expect(markdown.contains("🔴 Error"))
-        #expect(markdown.contains("🟡 Warning"))
-        #expect(markdown.contains("🔵 Info"))
+        #expect(markdown.contains("#### 🔴 Finding f-error"))
+        #expect(markdown.contains("#### 🟡 Finding f-warning"))
         #expect(markdown.contains("![") == false)
         #expect(markdown.contains("<table") == false)
+        // No more triple-booking: the old "## Findings", "## Playlist Information", and
+        // "## Session Details" sections are gone — everything lives in per-playlist blocks.
+        #expect(markdown.contains("\n## Findings") == false)
+        #expect(markdown.contains("## Playlist Information") == false)
+        #expect(markdown.contains("## Session Details") == false)
 
         for playlist in information {
-            for group in PlaylistInfoFormatter.groups(for: playlist) {
-                #expect(markdown.contains(group.title))
-                for field in group.fields {
+            for field in PlaylistInfoFormatter.reportHeaderFields(for: playlist) {
+                #expect(markdown.contains("\(field.label):"))
+                #expect(markdown.contains(field.value))
+            }
+            if let timingFields = PlaylistInfoFormatter.reportTimingFields(for: playlist) {
+                for field in timingFields {
                     #expect(markdown.contains("\(field.label):"))
                     #expect(markdown.contains(field.value))
                 }

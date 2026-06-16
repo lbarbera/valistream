@@ -108,7 +108,9 @@ struct LiveReportFreshnessTests {
 
         #expect(md.contains("## Summary"))
         #expect(md.contains("## Legend"))
-        #expect(md.contains("## Session Details"))
+        #expect(md.contains("## Session Details") == false)
+        // The live media playlist renders as its own per-playlist block (master + this variant).
+        #expect(md.contains("## Incident Timeline"))
 
         await harness.abortAndFinish()
     }

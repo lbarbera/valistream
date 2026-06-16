@@ -234,26 +234,28 @@ struct SessionReportTests {
         let builder = SessionReportBuilder()
         let md = builder.buildMarkdown(session: makeSnapshot(), playlists: [], findings: makeFindings())
         #expect(md.contains("## Summary"))
-        #expect(md.contains("Error"))
-        #expect(md.contains("Warning"))
+        #expect(md.contains("1 error"))
+        #expect(md.contains("1 warning"))
     }
 
-    @Test("report.md lists all playlists under Session Details section")
+    @Test("report.md lists each playlist as its own block, with no Session Details section")
     func markdownListsPlaylists() {
         let builder = SessionReportBuilder()
         let md = builder.buildMarkdown(session: makeSnapshot(), playlists: makePlaylists(), findings: [])
-        #expect(md.contains("## Session Details"))
+        #expect(md.contains("## Session Details") == false)
         #expect(md.contains("master"))
+        // "variant-0" has no registered alias here, so it falls back to its raw playlist ID.
         #expect(md.contains("variant-0"))
         #expect(md.contains("audio-0"))
         #expect(md.contains("excluded"))
     }
 
-    @Test("report.md renders findings section when findings exist")
+    @Test("report.md renders each finding under its playlist's own Findings subsection")
     func markdownRendersFindings() {
         let builder = SessionReportBuilder()
-        let md = builder.buildMarkdown(session: makeSnapshot(), playlists: [], findings: makeFindings())
-        #expect(md.contains("## Findings"))
+        let md = builder.buildMarkdown(session: makeSnapshot(), playlists: makePlaylists(), findings: makeFindings())
+        #expect(md.contains("\n## Findings") == false)
+        #expect(md.contains("### Findings"))
         #expect(md.contains("RFC8216.4.3.4.2-BANDWIDTH"))
         #expect(md.contains("TOOL.delivery"))
     }

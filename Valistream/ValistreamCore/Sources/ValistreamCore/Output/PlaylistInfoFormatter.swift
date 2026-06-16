@@ -34,6 +34,9 @@ public struct PlaylistInfoFieldGroup: Sendable, Equatable {
 /// Produces the shared playlist information content used by terminal and report renderers.
 public enum PlaylistInfoFormatter {
     /// Returns ordered field groups for a playlist information value.
+    ///
+    /// Used by the terminal status renderer (`StatusRenderer`). The markdown report renderer uses
+    /// `reportHeaderFields(for:)` / `reportTimingFields(for:)` instead.
     public static func groups(for information: PlaylistInformation) -> [PlaylistInfoFieldGroup] {
         switch information.kind {
         case .master:
@@ -98,6 +101,68 @@ public enum PlaylistInfoFormatter {
             PlaylistInfoFieldGroup(title: "Protection", fields: [
                 field("Protection", info.protection.description),
             ]),
+        ]
+    }
+
+    /// Returns flat report-header bullets for a playlist information value (master or media),
+    /// excluding the playlist ID (the caller renders that in the block heading instead).
+    public static func reportHeaderFields(for information: PlaylistInformation?) -> [PlaylistInfoField] {
+        guard let information else { return [] }
+        switch information.kind {
+        case .master:
+            return information.master.map(masterHeaderFields) ?? []
+        case .media:
+            return information.media.map(mediaHeaderFields) ?? []
+        }
+    }
+
+    /// Returns the merged Timing+Sequence bullets for a media playlist, or `nil` for master
+    /// playlists (which have no per-segment timing to report).
+    public static func reportTimingFields(for information: PlaylistInformation?) -> [PlaylistInfoField]? {
+        guard let information, information.kind == .media else { return nil }
+        return information.media.map(mediaTimingFields)
+    }
+
+    private static func masterHeaderFields(_ info: MasterInfo) -> [PlaylistInfoField] {
+        [
+            field("Type", "Master"),
+            field("HLS version", declared(info.hlsVersion)),
+            field("Independent segments", yesNo(info.independentSegments)),
+            field("Variants", String(info.variantCount)),
+            field("Media playlists", String(info.uniqueMediaPlaylistCount)),
+            field("Renditions", renditionCounts(info.renditionCountsByType)),
+            field("I-frame streams", String(info.iFrameStreamCount)),
+            field("Resolutions", listed(info.distinctResolutions)),
+            field("Codecs", listed(info.distinctCodecs)),
+            field("Bandwidth", range(info.minimumBandwidth, info.maximumBandwidth)),
+            field("Frame rate", range(info.minimumFrameRate, info.maximumFrameRate)),
+            field("Session protection", info.sessionProtection.description),
+        ]
+    }
+
+    private static func mediaHeaderFields(_ info: MediaInfo) -> [PlaylistInfoField] {
+        [
+            field("Type", info.playlistType),
+            field("HLS version", declared(info.hlsVersion)),
+            field("End list", yesNo(info.endList)),
+            field("Independent segments", yesNo(info.independentSegments)),
+            field("I-frames only", yesNo(info.iFramesOnly)),
+            field("Segment format", listed(info.segmentFormats)),
+            field("Byte ranges", yesNo(info.byteRangeUsed)),
+            field("Program date time", yesNo(info.programDateTimeAvailable)),
+            field("Protection", info.protection.description),
+        ]
+    }
+
+    private static func mediaTimingFields(_ info: MediaInfo) -> [PlaylistInfoField] {
+        [
+            field("Segments", String(info.segmentCount)),
+            field("Total duration", seconds(info.totalListedDuration)),
+            field("Target duration", info.targetDuration.map(seconds) ?? "Not declared"),
+            field("Segment duration", segmentDuration(info)),
+            field("Media sequence", String(info.mediaSequence)),
+            field("Discontinuity sequence", String(info.discontinuitySequence)),
+            field("Discontinuities", String(info.discontinuityCount)),
         ]
     }
 

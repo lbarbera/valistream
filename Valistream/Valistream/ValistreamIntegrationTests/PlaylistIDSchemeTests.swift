@@ -303,24 +303,22 @@ struct PlaylistIDSchemeTests {
         let folder = try #require(await harness.session.sessionFolderURL)
         let reportMD = try String(contentsOf: folder.appending(path: "report.md"), encoding: .utf8)
 
-        // Extract body after Legend section ends (next ## heading or end)
-        guard let legendRange = reportMD.range(of: "## Legend") else {
-            Issue.record("No ## Legend section found in report")
+        // The header preamble table intentionally names the raw input URL (`| Stream | ... |`),
+        // and the Legend table is the one section permitted to contain raw URLs (the mapping
+        // from alias to URL); Legend is also the last section in the document. Everything
+        // between Summary and Legend — Incident Timeline and the per-playlist blocks — must
+        // use aliases only.
+        guard
+            let summaryRange = reportMD.range(of: "## Summary"),
+            let legendRange = reportMD.range(of: "## Legend")
+        else {
+            Issue.record("No ## Summary or ## Legend section found in report")
             return
         }
-        let afterLegend = String(reportMD[legendRange.upperBound...])
-        // Find the next section after Legend
-        let bodyAfterLegend: String
-        if let nextSectionRange = afterLegend.range(of: "\n## ") {
-            bodyAfterLegend = String(afterLegend[nextSectionRange.upperBound...])
-        }
-        else {
-            bodyAfterLegend = afterLegend
-        }
+        let bodyBetween = String(reportMD[summaryRange.lowerBound..<legendRange.lowerBound])
 
-        // The body after Legend must contain no raw https:// playlist URLs
-        #expect(bodyAfterLegend.contains("https://") == false,
-                "Body sections after Legend must not contain raw URLs")
+        #expect(bodyBetween.contains("https://") == false,
+                "Body sections between Summary and Legend must not contain raw URLs")
     }
 
     // MARK: - Private helpers
