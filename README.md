@@ -3,8 +3,9 @@
 ![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift-6.0-orange)
+![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 
-Validates and monitors HLS playlists (live & vod) against RFC 8216 and Apple HLS authoring rules. 
+Validates and monitors HLS playlists (live & vod) against RFC 8216 and Apple HLS authoring rules.
 
 📥 Fetches every master/media-playlist → **validates agains HLS specs**
 
@@ -22,7 +23,8 @@ Validates and monitors HLS playlists (live & vod) against RFC 8216 and Apple HLS
 
 **Homebrew**
 ```bash
-brew tap volodymyrai/homebrew-valistream
+brew tap volodymyrai/valistream
+brew trust volodymyrai/valistream
 brew install valistream
 
 valistream --version # verify it was installed
