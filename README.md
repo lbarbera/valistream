@@ -4,7 +4,7 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift-6.0-orange)
 
-Validates and monitors HLS streams against RFC 8216 and Apple HLS authoring rules. 
+Validates and monitors HLS playlists (live & vod) against RFC 8216 and Apple HLS authoring rules. 
 
 📥 Fetches every master/media-playlist → **validates agains HLS specs**
 
@@ -18,16 +18,24 @@ Validates and monitors HLS streams against RFC 8216 and Apple HLS authoring rule
 
 ## Quick start
 
-Download `valistream-cli.zip` from latest Release
-
 ### On MacOS
 
+**Homebrew**
 ```bash
-./valistream "<.m3u8 URL here>"
+brew tap volodymyrai/homebrew-valistream
+brew install valistream
+
+valistream --version # verify it was installed
+```
+
+Then just call it like:
+
+```bash
+valistream "<.m3u8 URL here>"
 
 or 
 
-./valistream --help # for more options
+valistream --help # for more options
 ```
 
 ### On Windows
@@ -36,7 +44,7 @@ _Not yet supported 🤞_
 
 ## Generated artifacts
 
-Every run creates a timestamped session folder under `--output`
+Every run creates a timestamped session folder under `--output-dir`
 (default `~/.valistream/sessions/<sessionID>/`)
 
 | File | Description |

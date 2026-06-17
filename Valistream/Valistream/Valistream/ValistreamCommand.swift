@@ -19,7 +19,7 @@ struct ValistreamCommand: AsyncParsableCommand {
         commandName: "valistream",
         abstract: "Validate and monitor HLS streams against RFC 8216 and Apple authoring rules.",
         discussion: "",
-        version: "0.4.0"
+        version: "0.5.0"
     )
 
 
