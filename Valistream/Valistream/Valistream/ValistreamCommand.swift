@@ -17,7 +17,7 @@ struct ValistreamCommand: AsyncParsableCommand {
 
     static let configuration = CommandConfiguration(
         commandName: "valistream",
-        abstract: "Validate and monitor HLS streams against RFC 8216 and Apple authoring rules.",
+        abstract: "Validate and monitor HLS playlists (live & vod) against RFC 8216 and Apple authoring rules.",
         discussion: "",
         version: "0.5.0"
     )

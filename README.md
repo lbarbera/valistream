@@ -35,9 +35,32 @@ Then just call it like:
 ```bash
 valistream "<.m3u8 URL here>"
 
-or 
+or
 
-valistream --help # for more options
+valistream "<.m3u8 URL here>" --preselect 720p,audio,subs # to monitor only these
+
+or
+
+USAGE: valistream <url> [--limit <limit>] [--preselect <preselect>] [--select] [--non-interactive] [--output-dir <output-dir>] [--json] [--quiet] [--verbose] [--no-color]
+
+ARGUMENTS:
+  <url>                   HTTP/HTTPS URL of a master playlist (or media playlist, auto-detected).
+
+OPTIONS:
+  --limit <limit>         Live session time limit, e.g. 90s, 15m, 24h.
+  --preselect <preselect> Pre-select a subset of renditions (comma-separated patterns matching ID, group, name, or URL).
+        Unattended/scriptable; no prompt is shown. Formerly --select <pattern> (≤0.2.0).
+  --select                Open the interactive multi-select checklist with all renditions pre-selected.
+        Requires a TTY; on non-TTY falls back to processing all renditions. Cannot be combined with --preselect.
+  --non-interactive       Never prompt; process all renditions without interaction.
+  --output-dir <output-dir>
+                          Parent directory for session folders. Defaults to ~/.valistream/sessions/.
+  --json                  Machine output: findings as JSON Lines on stdout.
+  --quiet                 Suppress live status; findings and summary only.
+  --verbose               Show extended detail: raw timestamps, all HTTP headers.
+  --no-color              Disable all terminal color output (also honored via NO_COLOR env).
+  --version               Show the version.
+  -h, --help              Show help information.
 ```
 
 ### On Windows
