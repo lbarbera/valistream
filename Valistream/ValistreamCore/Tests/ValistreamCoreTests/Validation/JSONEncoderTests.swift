@@ -71,6 +71,7 @@ struct JSONEncoderTests {
         let json = try #require(String(data: data, encoding: .utf8))
         #expect(json.contains("\"source\""))
         #expect(json.contains("\"ruleId\""))
+        #expect(json.contains("\"specRef\""))
         #expect(json.contains("\"resource\""))
         #expect(json.contains("\"refreshIndex\""))
     }

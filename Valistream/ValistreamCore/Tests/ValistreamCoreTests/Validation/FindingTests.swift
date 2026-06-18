@@ -48,6 +48,44 @@ struct FindingTests {
         #expect(decoded == finding)
     }
 
+    @Test("derives specRef from spec-grounded rule ID")
+    func derivesSpecRef() {
+        let finding = Finding(
+            id: "f1",
+            ruleId: "RFC8216.4.3.4.2-BANDWIDTH",
+            source: .rfc8216,
+            severity: .error,
+            category: .masterPlaylist,
+            resource: resource,
+            location: nil,
+            refreshIndex: nil,
+            observedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            message: "Missing BANDWIDTH",
+            context: [:]
+        )
+
+        #expect(finding.specRef == "RFC 8216 §4.3.4.2")
+    }
+
+    @Test("leaves specRef nil for operational rule ID")
+    func leavesOperationalSpecRefNil() {
+        let finding = Finding(
+            id: "f1",
+            ruleId: "TOOL.delivery",
+            source: .tool,
+            severity: .warning,
+            category: .delivery,
+            resource: resource,
+            location: nil,
+            refreshIndex: nil,
+            observedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            message: "slow response",
+            context: [:]
+        )
+
+        #expect(finding.specRef == nil)
+    }
+
     @Test("emits schema field names and string resource")
     func emitsSchemaFieldNames() throws {
         let finding = Finding(
@@ -92,5 +130,27 @@ struct FindingTests {
         let json = try #require(String(data: data, encoding: .utf8))
 
         #expect(json.contains("\"location\"") == false)
+    }
+
+    @Test("omits the specRef key when there is no spec reference")
+    func omitsAbsentSpecRef() throws {
+        let finding = Finding(
+            id: "f1",
+            ruleId: "TOOL.delivery",
+            source: .tool,
+            severity: .info,
+            category: .delivery,
+            resource: resource,
+            location: nil,
+            refreshIndex: nil,
+            observedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            message: "info",
+            context: [:]
+        )
+
+        let data = try Finding.jsonEncoder.encode(finding)
+        let json = try #require(String(data: data, encoding: .utf8))
+
+        #expect(json.contains("\"specRef\"") == false)
     }
 }

@@ -490,9 +490,10 @@ public struct SessionReportBuilder: Sendable {
         case .warning: sevGlyph = "🟡"
         case .info: sevGlyph = "🔵"
         }
+        let specRef = finding.specRef.map { " (\($0))" } ?? ""
         var md = "#### \(sevGlyph) Finding \(finding.id)\n\n"
         md += "- Severity: \(finding.severity.rawValue.capitalized)\n"
-        md += "- Rule: `\(finding.ruleId)`\n"
+        md += "- Rule: `\(finding.ruleId)`\(specRef)\n"
         md += "- Message: \(finding.message)\n"
         md += "- Observed: \(ReportTimestampFormatter.format(finding.observedAt, timeZone: timeZone))\n"
         let reference = evidenceByFindingID[finding.id] ?? resolver.resolve(

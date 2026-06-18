@@ -127,6 +127,7 @@ struct ReportMarkdownTests {
 
         let masterBlock = String(md[masterRange.lowerBound..<videoRange.lowerBound])
         #expect(masterBlock.contains("#### 🔴 Finding f1"))
+        #expect(masterBlock.contains("- Rule: `RFC8216.4.3.4.2-BANDWIDTH` (RFC 8216 §4.3.4.2)"))
         #expect(masterBlock.contains("#### 🔴 Finding f3") == false)
         #expect(masterBlock.contains("#### 🟡 Finding f2") == false)
 
@@ -139,7 +140,9 @@ struct ReportMarkdownTests {
             videoBlock = fromVideo
         }
         #expect(videoBlock.contains("#### 🟡 Finding f2"))
+        #expect(videoBlock.contains("- Rule: `TOOL.delivery`\n"))
         #expect(videoBlock.contains("#### 🔴 Finding f3"))
+        #expect(videoBlock.contains("- Rule: `RFC8216.4.3.3.1` (RFC 8216 §4.3.3.1)"))
         #expect(videoBlock.contains("#### 🔴 Finding f1") == false)
     }
 

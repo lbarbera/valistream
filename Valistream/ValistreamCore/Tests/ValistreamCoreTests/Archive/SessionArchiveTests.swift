@@ -137,10 +137,10 @@ struct SessionArchiveTests {
         #expect(decoded.url == url)
         #expect(decoded.bodyPath == "playlists/master/master_0.m3u8")
         #expect(decoded.bodyBytes == Data("#EXTM3U\n".utf8).count)
-        #expect(decoded.durationMs == 1000)
+        #expect(decoded.responseTimeMs == 1000)
     }
 
-    @Test("sidecar timestamps match full ISO-8601 UTC+ms form and durationMs field is present")
+    @Test("sidecar timestamps match full ISO-8601 UTC+ms form and responseTimeMs field is present")
     func sidecarTimestampsAreFullISO8601UTC() async throws {
         let tmp = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: tmp) }
@@ -156,10 +156,10 @@ struct SessionArchiveTests {
         let utcMsRegex = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00/
         #expect(start.wholeMatch(of: utcMsRegex) != nil, "requestStartedAt must be full ISO-8601 UTC+ms")
         #expect(end.wholeMatch(of: utcMsRegex) != nil, "responseEndedAt must be full ISO-8601 UTC+ms")
-        #expect(obj["durationMs"] != nil, "durationMs field must be present in sidecar JSON")
+        #expect(obj["responseTimeMs"] != nil, "responseTimeMs field must be present in sidecar JSON")
     }
 
-    @Test("sub-second fetch: timestamps differ in encoded form and durationMs matches the interval")
+    @Test("sub-second fetch: timestamps differ in encoded form and responseTimeMs matches the interval")
     func sidecarSubSecondTimestampPrecision() async throws {
         let tmp = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: tmp) }
@@ -171,10 +171,10 @@ struct SessionArchiveTests {
         let start = try #require(obj["requestStartedAt"] as? String)
         let end = try #require(obj["responseEndedAt"] as? String)
         #expect(start != end, "sub-second timestamps must differ in encoded form")
-        #expect((obj["durationMs"] as? Int) == 250, "durationMs must be round(0.25 * 1000) = 250")
+        #expect((obj["responseTimeMs"] as? Int) == 250, "responseTimeMs must be round(0.25 * 1000) = 250")
     }
 
-    @Test("durationMs is zero when responseEndedAt precedes requestStartedAt (clock skew)")
+    @Test("responseTimeMs is zero when responseEndedAt precedes requestStartedAt (clock skew)")
     func sidecarDurationMsIsZeroOnClockSkew() async throws {
         let tmp = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: tmp) }
@@ -199,7 +199,7 @@ struct SessionArchiveTests {
         let metaPath = archive.sessionFolder.appending(path: "playlists/skew/skew_0.meta.json")
         let anyObj = try JSONSerialization.jsonObject(with: Data(contentsOf: metaPath))
         let obj = try #require(anyObj as? [String: Any])
-        #expect((obj["durationMs"] as? Int) == 0, "durationMs must be clamped to 0 on clock skew")
+        #expect((obj["responseTimeMs"] as? Int) == 0, "responseTimeMs must be clamped to 0 on clock skew")
     }
 
     @Test("metaDecoder round-trip preserves dates to millisecond precision")
@@ -212,7 +212,7 @@ struct SessionArchiveTests {
         let decoded = try SessionArchive.metaDecoder.decode(ArtifactRecord.self, from: Data(contentsOf: metaPath))
         #expect(abs(decoded.requestStartedAt.timeIntervalSince(record.requestStartedAt)) < 0.001)
         #expect(abs(decoded.responseEndedAt.timeIntervalSince(record.responseEndedAt)) < 0.001)
-        #expect(decoded.durationMs == record.durationMs)
+        #expect(decoded.responseTimeMs == record.responseTimeMs)
     }
 
     @Test("second store increments the snapshot index")

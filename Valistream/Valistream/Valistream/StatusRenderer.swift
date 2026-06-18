@@ -162,7 +162,8 @@ struct StatusRenderer: Sendable {
     }
 
     func formatFinding(_ finding: Finding, evidence: EvidenceReference) -> String {
-        writer.formatFinding(severity: finding.severity, message: evidence.terminalMessage(for: finding))
+        let specRef = finding.specRef.map { " (\($0))" } ?? ""
+        return writer.formatFinding(severity: finding.severity, message: evidence.terminalMessage(for: finding) + specRef)
     }
 
 
@@ -385,8 +386,9 @@ struct StatusRenderer: Sendable {
 
     private func findingLines(_ pending: PendingFinding, snapshot: String) -> [TerminalWriter.Line] {
         let severity = pending.finding.severity
+        let specRef = pending.finding.specRef.map { " (\($0))" } ?? ""
         var lines = [TerminalWriter.Line(
-            "\(writer.marker(for: severity)) \(findingOutcome(severity)) \(snapshot): \(pending.finding.message)",
+            "\(writer.marker(for: severity)) \(findingOutcome(severity)) \(snapshot): \(pending.finding.message)\(specRef)",
             role: severity == .error ? .error : (severity == .warning ? .warning : .metadata),
             wholeLineTint: severity != .info,
             at: pending.at

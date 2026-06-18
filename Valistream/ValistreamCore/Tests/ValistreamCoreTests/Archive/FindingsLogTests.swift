@@ -68,6 +68,7 @@ struct FindingsLogTests {
         let decoded = try Finding.jsonDecoder.decode(Finding.self, from: Data(lines[0].utf8))
         #expect(decoded.id == "f1")
         #expect(decoded.ruleId == "RFC8216.test")
+        #expect(decoded.specRef == "RFC 8216 §test")
     }
 
     @Test("multiple findings produce one JSON line each")

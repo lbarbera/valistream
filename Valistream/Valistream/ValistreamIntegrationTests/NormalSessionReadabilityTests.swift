@@ -35,6 +35,7 @@ struct NormalSessionReadabilityTests {
         #expect(output.components(separatedBy: "Refreshed video_0").count - 1 == 1)
         #expect(output.components(separatedBy: "Refreshed video_1").count - 1 == 1)
         #expect(output.contains("Refreshed video_1") && output.contains("Warning video_1"))
+        #expect(output.contains("Target duration changed. (RFC 8216 §4.3.3.1)"))
         #expect(output.contains("video_1.m3u8\n\n") == false)
     }
 
@@ -218,6 +219,23 @@ struct NormalSessionReadabilityTests {
         #expect(output.contains("Complete"))
     }
 
+    @Test("summary finding formatter appends spec reference")
+    func summaryFindingFormatterAppendsSpecReference() {
+        let recorder = OutputRecorder()
+        let renderer = makeRenderer(recorder: recorder)
+        let at = Date(timeIntervalSince1970: 1_750_000_000)
+        let finding = makeFinding(at: at)
+
+        let line = renderer.formatFinding(
+            finding,
+            evidence: .single(path: "playlists/video/video_1.m3u8")
+        )
+
+        #expect(line.contains("Target duration changed. · evidence: playlists/video/video_1.m3u8 (RFC 8216 §4.3.3.1)"))
+    }
+
+
+
     private func makeRenderer(recorder: OutputRecorder) -> StatusRenderer {
         let mode = makeMode()
         return StatusRenderer(
@@ -246,8 +264,8 @@ struct NormalSessionReadabilityTests {
     private func makeFinding(at: Date) -> Finding {
         Finding(
             id: "finding-1",
-            ruleId: "TOOL.test",
-            source: .tool,
+            ruleId: "RFC8216.4.3.3.1-DURATION",
+            source: .rfc8216,
             severity: .warning,
             category: .mediaPlaylist,
             resource: URL(filePath: "/video.m3u8"),

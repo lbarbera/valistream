@@ -89,6 +89,7 @@ public struct Finding: Sendable, Equatable, Codable, Identifiable {
 
     public let id: String
     public let ruleId: String
+    public let specRef: String?
     public let source: Source
     public let severity: Severity
     public let category: Category
@@ -118,6 +119,7 @@ public struct Finding: Sendable, Equatable, Codable, Identifiable {
     ) {
         self.id = id
         self.ruleId = ruleId
+        self.specRef = SpecCatalog.reference(forRuleId: ruleId)
         self.source = source
         self.severity = severity
         self.category = category

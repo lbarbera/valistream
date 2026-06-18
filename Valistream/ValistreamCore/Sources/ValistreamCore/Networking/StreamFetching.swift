@@ -122,7 +122,7 @@ public struct ArtifactRecord: Sendable, Equatable, Codable {
     public let redirectChain: [RedirectHop]
     public let bodyPath: String
     public let bodyBytes: Int
-    public let durationMs: Int
+    public let responseTimeMs: Int
     public let outcome: String
 
     public init(requestId: String, bodyPath: String, result: FetchResult) {
@@ -140,7 +140,7 @@ public struct ArtifactRecord: Sendable, Equatable, Codable {
         self.redirectChain = result.metadata.redirectChain
         self.bodyPath = bodyPath
         self.bodyBytes = result.body.count
-        self.durationMs = max(0, Int((result.metadata.responseEndedAt.timeIntervalSince(result.metadata.requestStartedAt) * 1000).rounded()))
+        self.responseTimeMs = max(0, Int((result.metadata.responseEndedAt.timeIntervalSince(result.metadata.requestStartedAt) * 1000).rounded()))
         self.outcome = Self.describe(result.outcome)
     }
 

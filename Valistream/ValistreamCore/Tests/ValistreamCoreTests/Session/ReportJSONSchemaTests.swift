@@ -106,19 +106,28 @@ struct ReportJSONSchemaTests {
             location: nil, refreshIndex: nil, observedAt: start,
             message: "Missing BANDWIDTH", context: [:]
         )
-        let obj    = try buildJSON(findings: [finding])
+        let bareFinding = Finding(
+            id: "f2", ruleId: "TOOL.delivery", source: .tool,
+            severity: .warning, category: .delivery, resource: inputURL,
+            location: nil, refreshIndex: nil, observedAt: start,
+            message: "Slow delivery", context: [:]
+        )
+        let obj    = try buildJSON(findings: [finding, bareFinding])
         let arr    = try #require(obj["findings"] as? [[String: Any]])
-        #expect(arr.count == 1)
+        #expect(arr.count == 2)
         let f = arr[0]
         // Core fields that must exist
         #expect(f["id"]       != nil)
         #expect(f["ruleId"]   != nil)
+        #expect(f["specRef"]  as? String == "RFC 8216 §4.3.4.2")
         #expect(f["severity"] != nil)
         #expect(f["category"] != nil)
         #expect(f["resource"] != nil)
         #expect(f["message"]  != nil)
         // Aliases must NOT appear in JSON (schema frozen, SC-010)
         #expect(f["alias"]    == nil)
+        let bare = arr[1]
+        #expect(bare["specRef"] == nil)
     }
 
     // MARK: - No aliases in JSON (SC-010)
