@@ -40,7 +40,7 @@ struct PrettyJSONFilesTests {
         harness.fetcher.timeline(playlistURL, [
             .init(at: .zero, reply: .body(mediaPlaylist)),
         ])
-        harness.start()
+        await harness.start()
         await harness.abortAndFinish()
 
         let folder = try #require(await harness.session.sessionFolderURL)
@@ -65,7 +65,7 @@ struct PrettyJSONFilesTests {
         harness.fetcher.timeline(playlistURL, [
             .init(at: .zero, reply: .body(mediaPlaylist)),
         ])
-        harness.start()
+        await harness.start()
         await harness.abortAndFinish()
 
         let folder = try #require(await harness.session.sessionFolderURL)
@@ -97,7 +97,7 @@ struct PrettyJSONFilesTests {
             .init(at: .zero, reply: .body(mediaPlaylist)),
             .init(at: .seconds(6), reply: .body(mediaPlaylist)),
         ])
-        harness.start()
+        await harness.start()
         // Advance one refresh cycle so the playlist body is archived
         await harness.step(by: 6, refreshing: playlistURL)
         await harness.abortAndFinish()
@@ -144,7 +144,7 @@ struct PrettyJSONFilesTests {
             .init(at: .zero, reply: .body(mediaPlaylist)),
             .init(at: .seconds(6), reply: .body(mediaPlaylist)),
         ])
-        harness.start()
+        await harness.start()
         // Advance one refresh cycle so the playlist body is archived
         await harness.step(by: 6, refreshing: playlistURL)
         await harness.abortAndFinish()

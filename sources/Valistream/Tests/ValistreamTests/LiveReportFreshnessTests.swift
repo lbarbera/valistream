@@ -35,7 +35,7 @@ struct LiveReportFreshnessTests {
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(
                 mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
         ])
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: media)
 
         let folder = try #require(await harness.session.sessionFolderURL)
@@ -66,7 +66,7 @@ struct LiveReportFreshnessTests {
             .init(at: .seconds(12), reply: .body(LivePlaylists.window(
                 mediaSequence: 2, segments: ["s2.ts", "s3.ts", "s4.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         // After first refresh — JSON must be valid and have schemaVersion
         await harness.step(by: 6, refreshing: media)
@@ -99,7 +99,7 @@ struct LiveReportFreshnessTests {
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(
                 mediaSequence: 1, segments: ["s1.ts", "s2.ts"]))),
         ])
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: media)
 
         let folder = try #require(await harness.session.sessionFolderURL)
@@ -132,7 +132,7 @@ struct LiveReportFreshnessTests {
             .init(at: .seconds(12), reply: .body(LivePlaylists.window(
                 mediaSequence: 2, segments: ["s2.ts", "s3.ts", "s4.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         await harness.step(by: 6, refreshing: media)
         let folder  = try #require(await harness.session.sessionFolderURL)

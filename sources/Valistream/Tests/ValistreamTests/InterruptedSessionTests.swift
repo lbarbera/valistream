@@ -37,7 +37,7 @@ struct InterruptedSessionTests {
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         // Let at least one refresh cycle complete.
         await harness.step(by: 6, refreshing: media)
@@ -58,7 +58,7 @@ struct InterruptedSessionTests {
         harness.fetcher.timeline(media, [
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts"]))),
         ])
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: media)
         await harness.abortAndFinish()
         let folder = try #require(await harness.session.sessionFolderURL)
@@ -77,7 +77,7 @@ struct InterruptedSessionTests {
         harness.fetcher.timeline(media, [
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         // Advance enough to trigger staleness (> 1.5 × TD = 9 s for TD=6).
         for _ in 0..<4 {
@@ -110,7 +110,7 @@ struct InterruptedSessionTests {
         harness.fetcher.timeline(media, [
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         await harness.step(by: 6, refreshing: media)
         await harness.abortAndFinish()
@@ -135,7 +135,7 @@ struct InterruptedSessionTests {
         harness.fetcher.timeline(media, [
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         await harness.step(by: 6, refreshing: media)
         await harness.abortAndFinish()

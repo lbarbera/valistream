@@ -20,11 +20,11 @@ import ValistreamCore
 /// ```swift
 /// let harness = LiveSessionHarness(input: mediaURL)
 /// harness.fetcher.timeline(mediaURL, [.init(at: .zero, reply: .body(window0))])
-/// harness.start()
+/// await harness.start()
 /// await harness.step(by: 6, refreshing: mediaURL)
 /// await harness.abortAndFinish()
 /// ```
-final class LiveSessionHarness {
+actor LiveSessionHarness {
     // MARK: - Lets & Vars
 
     let clock = ManualClock()
@@ -62,7 +62,7 @@ final class LiveSessionHarness {
 
     /// Starts the session's `run()` loop in an unstructured task the harness owns.
     func start() {
-        runTask = Task { await session.run() }
+        runTask = Task { [session] in await session.run() }
     }
 
     /// Suspends until at least `count` monitor loops are parked on the clock (or a safety cap is hit).

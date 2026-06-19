@@ -46,38 +46,41 @@ struct VerbosityEquivalenceTests {
         let harness = LiveSessionHarness(input: masterURL, config: config)
         harness.fetcher.stub(masterURL, body: masterPlaylist)
         harness.fetcher.stub(mediaURL, body: liveMedia)
-        harness.start()
+        await harness.start()
 
         // Capture the machine event stream (--json surface).
-        var machineEvents: [SessionEvent] = []
-        let machineTask = Task {
+        let machineTask = Task { [harness] in
+            var machineEvents: [SessionEvent] = []
             for await event in harness.session.events {
                 machineEvents.append(event)
             }
+            return machineEvents
         }
 
         // Capture human output via StatusRenderer.
         let recorder = OutputRecorder()
-        var renderer = makeRenderer(recorder: recorder, verbose: verbose)
-        let renderTask = Task {
+        let renderTask = Task { [harness, recorder] in
+            var renderer = makeRenderer(recorder: recorder, verbose: verbose)
             for await event in harness.session.timestampedEvents {
                 renderer.render(event)
             }
+            return renderer.playlistCount
         }
 
         // Drive one refresh cycle, then abort.
         await harness.step(by: 6, refreshing: mediaURL)
         await harness.abortAndFinish()
 
-        await machineTask.value
-        await renderTask.value
+        let machineEvents = await machineTask.value
+        let playlistCount = await renderTask.value
 
-        renderer.renderSummary(
+        var summaryRenderer = makeRenderer(recorder: recorder, verbose: verbose)
+        summaryRenderer.renderSummary(
             findings: await harness.session.recordedFindings,
             state: await harness.session.state,
             sessionFolder: nil,
             elapsed: .seconds(1),
-            playlistCount: renderer.playlistCount,
+            playlistCount: playlistCount,
             reportPath: nil,
             at: Date(timeIntervalSince1970: 1_750_000_006)
         )

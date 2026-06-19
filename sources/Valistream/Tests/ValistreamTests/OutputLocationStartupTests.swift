@@ -53,15 +53,16 @@ struct OutputLocationStartupTests {
             inputURL: masterURL, config: config, fetcher: fetcher, id: "test-loc"
         )
 
-        var events: [SessionEvent] = []
         let eventsStream = session.events
 
         let runTask = Task { await session.run() }
         let collectTask = Task {
+            var events: [SessionEvent] = []
             for await event in eventsStream { events.append(event) }
+            return events
         }
         await runTask.value
-        await collectTask.value
+        let events = await collectTask.value
 
         let folderIdx = events.firstIndex(where: {
             if case .sessionFolderResolved = $0 { return true }

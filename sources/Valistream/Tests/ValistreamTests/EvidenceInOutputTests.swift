@@ -24,7 +24,7 @@ struct EvidenceInOutputTests {
             .init(at: .zero, reply: .body(Self.initialPlaylist)),
             .init(at: .seconds(6), reply: .body(Self.refreshedPlaylist)),
         ])
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: playlistURL)
         await harness.abortAndFinish()
         let folder = try #require(await harness.session.sessionFolderURL)

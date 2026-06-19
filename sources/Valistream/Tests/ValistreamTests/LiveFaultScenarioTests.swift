@@ -39,7 +39,7 @@ struct LiveFaultScenarioTests {
             }
             return events
         }
-        harness.start()
+        await harness.start()
 
         for _ in 0..<6 {
             await harness.step(by: 6, refreshing: media)
@@ -82,7 +82,7 @@ struct LiveFaultScenarioTests {
         harness.fetcher.timeline(media, [
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         // Far more refreshes than threshold crossings.
         for _ in 0..<10 {
@@ -108,7 +108,7 @@ struct LiveFaultScenarioTests {
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
             .init(at: .seconds(30), reply: .body(LivePlaylists.window(mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         for _ in 0..<10 {
             await harness.step(by: 6, refreshing: media)
@@ -132,7 +132,7 @@ struct LiveFaultScenarioTests {
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
             .init(at: .seconds(3), reply: .body("Not Found", status: 404)),
         ])
-        harness.start()
+        await harness.start()
 
         for _ in 0..<6 {
             await harness.step(by: 6, refreshing: media)
@@ -160,7 +160,7 @@ struct LiveFaultScenarioTests {
             .init(at: .seconds(21), reply: .body(high)),
             .init(at: .seconds(27), reply: .body(low)),
         ])
-        harness.start()
+        await harness.start()
 
         for _ in 0..<6 {
             await harness.step(by: 6, refreshing: media)
@@ -180,7 +180,7 @@ struct LiveFaultScenarioTests {
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 10, segments: ["s10.ts", "s11.ts", "s12.ts"]))),
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(mediaSequence: 8, segments: ["s8.ts", "s9.ts", "s10.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         await harness.step(by: 6, refreshing: media)
 
@@ -198,7 +198,7 @@ struct LiveFaultScenarioTests {
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(mediaSequence: 11, segments: ["s11.ts", "s12.ts"], discontinuityAt: 1))),
             .init(at: .seconds(12), reply: .body(LivePlaylists.window(mediaSequence: 12, segments: ["s12.ts", "s13.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         await harness.step(by: 6, refreshing: media)
         await harness.step(by: 6, refreshing: media)
@@ -222,7 +222,7 @@ struct LiveFaultScenarioTests {
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
         ])
-        harness.start()
+        await harness.start()
 
         await harness.step(by: 6, refreshing: media)
         await harness.advance(by: 30)

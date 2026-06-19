@@ -25,27 +25,24 @@ struct HeartbeatMonotonicTests {
     func heartbeatMonotonicUnderLoad() async throws {
         let harness = LiveSessionHarness(input: singleURL)
         harness.fetcher.stub(singleURL, body: liveMedia)
-        harness.start()
-
-        var totals: [Int] = []
+        await harness.start()
 
         // Collect events concurrently while driving ≥20 refresh cycles
-        await withDiscardingTaskGroup { group in
-            group.addTask {
-                for await event in harness.session.events {
-                    if case .activity(let p) = event, let t = p.sessionRefreshTotal {
-                        totals.append(t)
-                    }
+        let collector = Task { [harness] in
+            var totals: [Int] = []
+            for await event in harness.session.events {
+                if case .activity(let p) = event, let t = p.sessionRefreshTotal {
+                    totals.append(t)
                 }
             }
-            group.addTask {
-                // Simulate 20+ refresh cycles (stray-input resilience at the event level)
-                for _ in 0..<20 {
-                    await harness.step(by: 6, refreshing: self.singleURL)
-                }
-                await harness.abortAndFinish()
-            }
+            return totals
         }
+        // Simulate 20+ refresh cycles (stray-input resilience at the event level)
+        for _ in 0..<20 {
+            await harness.step(by: 6, refreshing: singleURL)
+        }
+        await harness.abortAndFinish()
+        let totals = await collector.value
 
         guard totals.isEmpty == false else {
             Issue.record("Expected activity events with sessionRefreshTotal")
@@ -73,24 +70,22 @@ struct HeartbeatMonotonicTests {
     func sessionRefreshTotalAtLeast20After20Cycles() async throws {
         let harness = LiveSessionHarness(input: singleURL)
         harness.fetcher.stub(singleURL, body: liveMedia)
-        harness.start()
+        await harness.start()
 
-        var lastTotal: Int = 0
-        await withDiscardingTaskGroup { group in
-            group.addTask {
-                for await event in harness.session.events {
-                    if case .activity(let p) = event, let t = p.sessionRefreshTotal {
-                        lastTotal = t
-                    }
+        let collector = Task { [harness] in
+            var lastTotal: Int = 0
+            for await event in harness.session.events {
+                if case .activity(let p) = event, let t = p.sessionRefreshTotal {
+                    lastTotal = t
                 }
             }
-            group.addTask {
-                for _ in 0..<20 {
-                    await harness.step(by: 6, refreshing: self.singleURL)
-                }
-                await harness.abortAndFinish()
-            }
+            return lastTotal
         }
+        for _ in 0..<20 {
+            await harness.step(by: 6, refreshing: singleURL)
+        }
+        await harness.abortAndFinish()
+        let lastTotal = await collector.value
 
         #expect(lastTotal >= 20, "After 20 refresh cycles, sessionRefreshTotal should be ≥ 20, got \(lastTotal)")
     }

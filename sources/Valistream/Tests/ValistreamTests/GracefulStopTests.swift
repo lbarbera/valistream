@@ -33,7 +33,7 @@ struct GracefulStopTests {
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts", "s1.ts", "s2.ts"]))),
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
         ])
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: media)
         await harness.abortAndFinish()
 
@@ -62,7 +62,7 @@ struct GracefulStopTests {
         harness.fetcher.timeline(media, [
             .init(at: .seconds(0), reply: .body(LivePlaylists.window(mediaSequence: 0, segments: ["s0.ts"]))),
         ])
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: media)
         await harness.abortAndFinish()
 

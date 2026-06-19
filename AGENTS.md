@@ -1,6 +1,6 @@
 # Agent guide
 
-Repo = Swift Package Manager (SPM) package in ./sources. CLI tool. Swift 6, Strict Concurrency, Swift Testing
+Repo = Swift Package Manager (SPM) package in ./sources/Valistream/. CLI tool. Swift 6, Strict Concurrency, Swift Testing
 Targets: macOS14+
 
 

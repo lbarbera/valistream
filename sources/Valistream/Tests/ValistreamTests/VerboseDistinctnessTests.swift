@@ -82,20 +82,18 @@ struct VerboseDistinctnessTests {
         )
         harness.fetcher.stub(masterURL, body: masterPlaylist)
         harness.fetcher.stub(mediaURL, body: liveMedia)
-        harness.start()
-        var events: [SessionEvent] = []
+        await harness.start()
 
-        await withDiscardingTaskGroup { group in
-            group.addTask {
-                for await event in harness.session.events {
-                    events.append(event)
-                }
+        let collector = Task { [harness] in
+            var events: [SessionEvent] = []
+            for await event in harness.session.events {
+                events.append(event)
             }
-            group.addTask {
-                await harness.step(by: 6, refreshing: self.mediaURL)
-                await harness.abortAndFinish()
-            }
+            return events
         }
+        await harness.step(by: 6, refreshing: mediaURL)
+        await harness.abortAndFinish()
+        let events = await collector.value
 
         let retryDelays = events.compactMap { event -> Double? in
             guard case .trace(.refreshRetry(_, let delaySeconds)) = event else { return nil }
@@ -115,23 +113,20 @@ struct VerboseDistinctnessTests {
         )
         harness.fetcher.stub(masterURL, body: masterPlaylist)
         harness.fetcher.stub(mediaURL, body: liveMedia)
-        harness.start()
+        await harness.start()
 
-        var events: [SessionEvent] = []
-        await withDiscardingTaskGroup { group in
-            group.addTask {
-                for await event in harness.session.events {
-                    events.append(event)
-                }
+        let collector = Task { [harness] in
+            var events: [SessionEvent] = []
+            for await event in harness.session.events {
+                events.append(event)
             }
-            group.addTask {
-                // Drive one refresh cycle so refreshCompleted + cadence traces are emitted.
-                await harness.step(by: 6, refreshing: self.mediaURL)
-                await harness.abortAndFinish()
-            }
+            return events
         }
+        // Drive one refresh cycle so refreshCompleted + cadence traces are emitted.
+        await harness.step(by: 6, refreshing: mediaURL)
+        await harness.abortAndFinish()
 
-        return events
+        return await collector.value
     }
 
     /// Returns the category prefix of a `TraceEvent` for distinctness counting.

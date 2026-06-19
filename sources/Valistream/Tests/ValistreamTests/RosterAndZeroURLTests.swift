@@ -83,21 +83,19 @@ struct RosterAndZeroURLTests {
         harness.fetcher.stub(masterURL, body: masterPlaylist)
         harness.fetcher.stub(v1080URL, body: liveMedia)
         harness.fetcher.stub(v720URL, body: liveMedia)
-        harness.start()
+        await harness.start()
 
-        var collectedEvents: [SessionEvent] = []
-        await withDiscardingTaskGroup { group in
-            group.addTask {
-                for await event in harness.session.events {
-                    collectedEvents.append(event)
-                }
+        let collector = Task { [harness] in
+            var collectedEvents: [SessionEvent] = []
+            for await event in harness.session.events {
+                collectedEvents.append(event)
             }
-            group.addTask {
-                // Wait until both media renditions are monitoring (roster already emitted), then abort.
-                await harness.waitForSleepers(2)
-                await harness.abortAndFinish()
-            }
+            return collectedEvents
         }
+        // Wait until both media renditions are monitoring (roster already emitted), then abort.
+        await harness.waitForSleepers(2)
+        await harness.abortAndFinish()
+        let collectedEvents = await collector.value
 
         return (collectedEvents, [])
     }

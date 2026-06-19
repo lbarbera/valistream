@@ -50,7 +50,7 @@ struct MasterRedirectIdentityTests {
         harness.fetcher.stub(requestedMaster, reply: .redirect(finalURL: finalMaster, finalBody: Self.master, hops: hops))
         harness.fetcher.stub(videoURL, body: Self.media)
 
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         // 1. Master alias is 'master', keyed on the requested URL — never the dedup 'master_2'.

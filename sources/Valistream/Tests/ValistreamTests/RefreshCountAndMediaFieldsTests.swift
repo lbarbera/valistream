@@ -33,7 +33,7 @@ struct RefreshCountAndMediaFieldsTests {
                 mediaSequence: 2, segments: ["s2.ts", "s3.ts", "s4.ts"]))),
         ])
 
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: mediaURL)
         await harness.step(by: 6, refreshing: mediaURL)
 

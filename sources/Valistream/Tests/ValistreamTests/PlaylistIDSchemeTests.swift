@@ -54,7 +54,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(nonInteractive: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let report = try await buildMarkdown(harness: harness)
@@ -69,7 +69,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(nonInteractive: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let entries = await harness.session.aliasRegistry.all
@@ -86,7 +86,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(nonInteractive: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let entries = await harness.session.aliasRegistry.all
@@ -103,7 +103,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(nonInteractive: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let entries = await harness.session.aliasRegistry.all
@@ -120,7 +120,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(nonInteractive: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let entries = await harness.session.aliasRegistry.all
@@ -135,7 +135,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(nonInteractive: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let entries = await harness.session.aliasRegistry.all
@@ -152,12 +152,12 @@ struct PlaylistIDSchemeTests {
 
         let harness1 = LiveSessionHarness(input: masterURL, config: SessionConfig(nonInteractive: true))
         wireHarness(harness1, masterURL: masterURL)
-        harness1.start()
+        await harness1.start()
         await harness1.finish()
 
         let harness2 = LiveSessionHarness(input: masterURL, config: SessionConfig(nonInteractive: true))
         wireHarness(harness2, masterURL: masterURL)
-        harness2.start()
+        await harness2.start()
         await harness2.finish()
 
         let ids1 = await harness1.session.aliasRegistry.all.map(\.alias)
@@ -198,7 +198,7 @@ struct PlaylistIDSchemeTests {
             .init(at: .seconds(6), reply: .body(liveMedia)),
         ])
 
-        harness.start()
+        await harness.start()
 
         // Wait until the monitor is parked after the initial fetch, so the alias is registered.
         await harness.waitForSleepers(1)
@@ -242,7 +242,7 @@ struct PlaylistIDSchemeTests {
             .init(at: .seconds(6), reply: .body(LivePlaylists.window(mediaSequence: 1, segments: ["s1.ts", "s2.ts", "s3.ts"]))),
         ])
 
-        harness.start()
+        await harness.start()
         await harness.step(by: 6, refreshing: videoURL)
 
         let monitorStates = await harness.session.playlistMonitorStates
@@ -269,7 +269,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(outputDir: outputDir, nonInteractive: true, archiveEnabled: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let folder = try #require(await harness.session.sessionFolderURL)
@@ -297,7 +297,7 @@ struct PlaylistIDSchemeTests {
         let config = SessionConfig(outputDir: outputDir, nonInteractive: true, archiveEnabled: true)
         let harness = LiveSessionHarness(input: masterURL, config: config)
         wireHarness(harness, masterURL: masterURL)
-        harness.start()
+        await harness.start()
         await harness.finish()
 
         let folder = try #require(await harness.session.sessionFolderURL)
