@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+import valistream
 import ValistreamCore
 
 /// Verifies SC-004 / FR-007: non-interactive (no-TTY) output contains zero ANSI or cursor-control
