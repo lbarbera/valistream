@@ -1,25 +1,51 @@
-.DS_Store
-BuildData/
-.build/
-*/.build/
-DerivedData/
-*.swiftpm/
-Packages/
-*.tmp
-*.swp
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
 .vscode/
 .idea/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata/
+*.swp
+*.swo
 
-## Other
-*.moved-aside
-*.xccheckout
-*.xcscmblueprint
+# Testing / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# ruff
+.ruff_cache/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# PyInstaller build artifacts (spec file is tracked)
+*.manifest
+*.log
+
+# Session output (default location)
+.valistream/
+
+# Claude Code session data
+.claude/
+
+# macOS reference source (not part of Windows port)
+valistream-main/
+
+# Internal planning docs
+Valistream windows port plan.md
