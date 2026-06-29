@@ -36,8 +36,7 @@ async def monitor_live(
     try:
         with display or _NullContext():
             if display is not None:
-                for rendition in session.selected_renditions:
-                    display.add_rendition(rendition)
+                display.add_renditions(session.selected_renditions)
 
             if limit_seconds is not None:
                 await asyncio.wait_for(
@@ -71,7 +70,7 @@ async def _monitor_all_renditions(
 ) -> None:
     async with asyncio.TaskGroup() as tg:
         for rendition in session.selected_renditions:
-            status = display.get_status(rendition.alias) if display is not None else None
+            status = display.get_status(rendition.uri) if display is not None else None
             tg.create_task(
                 _monitor_rendition(session, master, rendition, client, status=status, display=display)
             )
@@ -120,7 +119,7 @@ async def _monitor_rendition(
     if display is not None:
         for f in new_findings:
             if f.severity == Severity.ERROR:
-                display.add_error(rendition.alias, f.message)  # type: ignore[union-attr]
+                display.add_error(rendition.uri, f.message)  # type: ignore[union-attr]
         display.refresh()
 
     previous: MediaPlaylist = parsed
@@ -162,7 +161,7 @@ async def _monitor_rendition(
         if display is not None:
             for f in new_findings:
                 if f.severity == Severity.ERROR:
-                    display.add_error(rendition.alias, f.message)  # type: ignore[union-attr]
+                    display.add_error(rendition.uri, f.message)  # type: ignore[union-attr]
             display.refresh()
 
         previous = parsed

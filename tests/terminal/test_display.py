@@ -14,14 +14,14 @@ from valistream.terminal.display import (
 )
 
 
-def _rendition(uri: str = "720p.m3u8", resolution: str = "1280x720") -> Rendition:
-    return Rendition(uri=uri, bandwidth=1280000, resolution=resolution)
+def _rendition(uri: str = "720p.m3u8", resolution: str = "1280x720", bandwidth: int = 1280000) -> Rendition:
+    return Rendition(uri=uri, bandwidth=bandwidth, resolution=resolution)
 
 
 class TestRenditionStatus:
     def test_initial_state(self) -> None:
         status = RenditionStatus("video-720p")
-        assert status.alias == "video-720p"
+        assert status.label == "video-720p"
         assert status.refresh_count == 0
         assert status.last_sequence is None
         assert status.finding_count == 0
@@ -55,14 +55,14 @@ class TestLiveDisplay:
         display = LiveDisplay(console)
         r = _rendition()
         status = display.add_rendition(r)
-        assert status.alias == r.alias
+        assert status.label == r.alias
 
     def test_get_status(self) -> None:
         console = Console(file=None, force_terminal=False)
         display = LiveDisplay(console)
         r = _rendition()
         display.add_rendition(r)
-        assert display.get_status(r.alias) is not None
+        assert display.get_status(r.uri) is not None
         assert display.get_status("nonexistent") is None
 
     def test_build_table(self) -> None:
@@ -80,6 +80,30 @@ class TestLiveDisplay:
         display.add_rendition(_rendition("720p.m3u8", "1280x720"))
         display.add_rendition(_rendition("1080p.m3u8", "1920x1080"))
         assert len(display._statuses) == 2
+
+    def test_add_renditions_unique_resolution(self) -> None:
+        console = Console(file=None, force_terminal=False)
+        display = LiveDisplay(console)
+        renditions = [
+            _rendition("720p.m3u8", "1280x720", 1280000),
+            _rendition("1080p.m3u8", "1920x1080", 5000000),
+        ]
+        display.add_renditions(renditions)
+        assert len(display._statuses) == 2
+        assert display.get_status("720p.m3u8").label == "video-720p"
+        assert display.get_status("1080p.m3u8").label == "video-1080p"
+
+    def test_add_renditions_duplicate_resolution_appends_mbps(self) -> None:
+        console = Console(file=None, force_terminal=False)
+        display = LiveDisplay(console)
+        renditions = [
+            _rendition("1080p_low.m3u8", "1920x1080", 5_000_000),
+            _rendition("1080p_high.m3u8", "1920x1080", 8_000_000),
+        ]
+        display.add_renditions(renditions)
+        assert len(display._statuses) == 2
+        assert display.get_status("1080p_low.m3u8").label == "video-1080p 5.0Mbps"
+        assert display.get_status("1080p_high.m3u8").label == "video-1080p 8.0Mbps"
 
 
 class TestCreateLiveDisplay:

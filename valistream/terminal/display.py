@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.live import Live
@@ -20,10 +21,10 @@ if TYPE_CHECKING:
 class RenditionStatus:
     """Mutable status for one rendition in the live panel."""
 
-    __slots__ = ("alias", "refresh_count", "last_sequence", "finding_count", "last_fetch")
+    __slots__ = ("label", "refresh_count", "last_sequence", "finding_count", "last_fetch")
 
-    def __init__(self, alias: str) -> None:
-        self.alias = alias
+    def __init__(self, label: str) -> None:
+        self.label = label
         self.refresh_count: int = 0
         self.last_sequence: int | None = None
         self.finding_count: int = 0
@@ -62,22 +63,39 @@ class LiveDisplay:
 
     def __init__(self, console: Console, *, color: bool = True) -> None:
         self._console = console
-        self._statuses: dict[str, RenditionStatus] = {}
+        self._statuses: dict[str, RenditionStatus] = {}  # keyed by rendition URI
         self._live: Live | None = None
         self._scanner = ScannerBar(color=color)
         self._error_lines: list[str] = []
 
-    def add_rendition(self, rendition: Rendition) -> RenditionStatus:
-        status = RenditionStatus(rendition.alias)
-        self._statuses[rendition.alias] = status
+    def add_rendition(self, rendition: Rendition, *, label: str | None = None) -> RenditionStatus:
+        display_label = label if label is not None else rendition.alias
+        status = RenditionStatus(display_label)
+        self._statuses[rendition.uri] = status
         return status
 
-    def get_status(self, alias: str) -> RenditionStatus | None:
-        return self._statuses.get(alias)
+    def add_renditions(self, renditions: Iterable[Rendition]) -> dict[str, RenditionStatus]:
+        """Add multiple renditions, appending bandwidth in Mbps to labels that share a resolution."""
+        rlist = list(renditions)
+        alias_counts = Counter(r.alias for r in rlist)
+        result: dict[str, RenditionStatus] = {}
+        for r in rlist:
+            if alias_counts[r.alias] > 1:
+                mbps = r.bandwidth / 1_000_000
+                label = f"{r.alias} {mbps:.1f}Mbps"
+            else:
+                label = r.alias
+            result[r.uri] = self.add_rendition(r, label=label)
+        return result
 
-    def add_error(self, rendition_alias: str, message: str) -> None:
+    def get_status(self, uri: str) -> RenditionStatus | None:
+        return self._statuses.get(uri)
+
+    def add_error(self, rendition_uri: str, message: str) -> None:
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
-        line = f"[dim]{ts}[/dim] [cyan]{rendition_alias}[/cyan] {message}"
+        status = self._statuses.get(rendition_uri)
+        label = status.label if status is not None else rendition_uri
+        line = f"[dim]{ts}[/dim] [cyan]{label}[/cyan] {message}"
         self._error_lines.append(line)
         if len(self._error_lines) > self._MAX_ERROR_LINES:
             self._error_lines.pop(0)
@@ -85,7 +103,7 @@ class LiveDisplay:
     def _build_table(self) -> Table:
         table = Table(title="Rendition Status", expand=True)
         table.add_column("Rendition", style="cyan", no_wrap=True)
-        table.add_column("Refreshes", justify="right")
+        table.add_column("Refs", justify="right")
         table.add_column("Last Seq", justify="right")
         table.add_column("Findings", justify="right")
         table.add_column("Last Fetch", no_wrap=True)
@@ -95,7 +113,7 @@ class LiveDisplay:
             fetch = status.last_fetch.strftime("%H:%M:%S") if status.last_fetch else "-"
             findings_style = "red" if status.finding_count > 0 else "green"
             table.add_row(
-                status.alias,
+                status.label,
                 str(status.refresh_count),
                 seq,
                 f"[{findings_style}]{status.finding_count}[/{findings_style}]",
