@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.live import Live
+from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from valistream.terminal.scanner import ScannerBar
 
@@ -50,16 +52,20 @@ class _DynamicPanel:
         d = self._display
         yield d._scanner.render()
         yield d._build_table()
+        yield d._build_error_panel()
 
 
 class LiveDisplay:
     """Live-updating status panel using rich.Live."""
+
+    _MAX_ERROR_LINES = 10
 
     def __init__(self, console: Console, *, color: bool = True) -> None:
         self._console = console
         self._statuses: dict[str, RenditionStatus] = {}
         self._live: Live | None = None
         self._scanner = ScannerBar(color=color)
+        self._error_lines: list[str] = []
 
     def add_rendition(self, rendition: Rendition) -> RenditionStatus:
         status = RenditionStatus(rendition.alias)
@@ -68,6 +74,13 @@ class LiveDisplay:
 
     def get_status(self, alias: str) -> RenditionStatus | None:
         return self._statuses.get(alias)
+
+    def add_error(self, rendition_alias: str, message: str) -> None:
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        line = f"[dim]{ts}[/dim] [cyan]{rendition_alias}[/cyan] {message}"
+        self._error_lines.append(line)
+        if len(self._error_lines) > self._MAX_ERROR_LINES:
+            self._error_lines.pop(0)
 
     def _build_table(self) -> Table:
         table = Table(title="Rendition Status", expand=True)
@@ -89,6 +102,13 @@ class LiveDisplay:
                 fetch,
             )
         return table
+
+    def _build_error_panel(self) -> Panel:
+        lines = self._error_lines[-self._MAX_ERROR_LINES:]
+        # Pad to always occupy MAX_ERROR_LINES rows so the panel height stays stable
+        padded = lines + [""] * (self._MAX_ERROR_LINES - len(lines))
+        content = Text.from_markup("\n".join(padded))
+        return Panel(content, title="[red]Recent Errors[/red]", expand=True)
 
     def refresh(self) -> None:
         """No-op: the Live auto-refresh reads fresh data on every cycle."""

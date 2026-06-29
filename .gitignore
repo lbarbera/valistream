@@ -41,11 +41,13 @@ Desktop.ini
 # Session output (default location)
 .valistream/
 
-# Claude Code session data
+# Claude / Anthropic Dev Files
+CLAUDE.md
 .claude/
-
-# macOS reference source (not part of Windows port)
-valistream-main/
+unit-testing.md
+.agents
+AGENTS.md
+styleguide.md
 
 # Internal planning docs
 Valistream windows port plan.md

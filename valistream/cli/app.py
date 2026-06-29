@@ -239,8 +239,6 @@ async def _run(
                     f"{len(renditions)} rendition(s) selected",
                     highlight=False,
                 )
-                for r in renditions:
-                    console.print(f"  • {r.alias}", highlight=False)
                 if stream_type == StreamType.LIVE:
                     started_at = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
                     console.print(
