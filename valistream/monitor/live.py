@@ -118,6 +118,9 @@ async def _monitor_rendition(
     if status is not None:
         status.update(sequence=getattr(parsed, "media_sequence", None), new_findings=len(new_findings))
     if display is not None:
+        for f in new_findings:
+            if f.severity == Severity.ERROR:
+                display.add_error(rendition.alias, f.message)  # type: ignore[union-attr]
         display.refresh()
 
     previous: MediaPlaylist = parsed
@@ -157,6 +160,9 @@ async def _monitor_rendition(
         if status is not None:
             status.update(sequence=getattr(parsed, "media_sequence", None), new_findings=len(new_findings))
         if display is not None:
+            for f in new_findings:
+                if f.severity == Severity.ERROR:
+                    display.add_error(rendition.alias, f.message)  # type: ignore[union-attr]
             display.refresh()
 
         previous = parsed
