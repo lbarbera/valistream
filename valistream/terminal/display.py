@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Iterable
 
 from rich.console import Console, ConsoleOptions, RenderResult
@@ -40,7 +40,7 @@ class RenditionStatus:
         if sequence is not None:
             self.last_sequence = sequence
         self.finding_count += new_findings
-        self.last_fetch = datetime.now(timezone.utc)
+        self.last_fetch = datetime.now()
 
 
 class _DynamicPanel:
@@ -92,7 +92,7 @@ class LiveDisplay:
         return self._statuses.get(uri)
 
     def add_error(self, rendition_uri: str, message: str) -> None:
-        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        ts = datetime.now().strftime("%H:%M:%S")
         status = self._statuses.get(rendition_uri)
         label = status.label if status is not None else rendition_uri
         line = f"[dim]{ts}[/dim] [cyan]{label}[/cyan] {message}"

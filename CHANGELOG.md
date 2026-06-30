@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.2] - 2026-06-30
+
+### Fixed
+
+- **Terminal dashboard times now display in local timezone**: status timestamps and error messages previously showed UTC times; they now display in the user's local timezone for better readability.
+
 ## [0.7.1] - 2026-06-29
 
 ### Fixed

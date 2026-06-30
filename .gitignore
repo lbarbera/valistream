@@ -44,10 +44,6 @@ Desktop.ini
 # Claude / Anthropic Dev Files
 CLAUDE.md
 .claude/
-unit-testing.md
 .agents
 AGENTS.md
-styleguide.md
 
-# Internal planning docs
-Valistream windows port plan.md
