@@ -2,6 +2,10 @@
 
 ## [0.8.0] - 2026-07-01
 
+### New Dependency
+
+- **Textual is now a runtime dependency**: the new dashboard design requires the Textual library. Make sure it is installed by running `pip install textual` before launching Valistream 0.8.0.
+
 ### Changed
 
 - **Live monitoring dashboard migrated from `rich.Live` to Textual**: the terminal dashboard is now a full-screen Textual app. This makes the **Recent Errors panel genuinely scrollable** — scroll with the mouse wheel, or with the arrow keys / Page Up / Page Down (the panel is focused on start). The panel keeps a 1000-line scrollback instead of showing only the most recent handful, and its border always renders correctly regardless of how full it is (superseding the 0.7.3 workaround). Press `q` or `Ctrl+C` to stop.
