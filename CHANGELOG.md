@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.3] - 2026-07-01
+
+### Fixed
+
+- **Terminal dashboard Recent Errors panel border rendering**: fixed visual artifact where the bottom border would disappear and be replaced with "..." when the error panel reached capacity. The maximum displayed errors reduced from 10 to 9 to ensure adequate space for border rendering.
+
 ## [0.7.2] - 2026-06-30
 
 ### Fixed

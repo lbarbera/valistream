@@ -59,7 +59,7 @@ class _DynamicPanel:
 class LiveDisplay:
     """Live-updating status panel using rich.Live."""
 
-    _MAX_ERROR_LINES = 10
+    _MAX_ERROR_LINES = 9
 
     def __init__(self, console: Console, *, color: bool = True) -> None:
         self._console = console
