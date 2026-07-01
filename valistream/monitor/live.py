@@ -33,32 +33,25 @@ async def monitor_live(
 ) -> None:
     session.add_findings(validate_master(master))
 
-    try:
-        with display or _NullContext():
-            if display is not None:
-                display.add_renditions(session.selected_renditions)
-
+    async def _work() -> None:
+        try:
+            coro = _monitor_all_renditions(session, master, client, display=display)
             if limit_seconds is not None:
-                await asyncio.wait_for(
-                    _monitor_all_renditions(session, master, client, display=display),
-                    timeout=limit_seconds,
-                )
+                await asyncio.wait_for(coro, timeout=limit_seconds)
             else:
-                await _monitor_all_renditions(session, master, client, display=display)
-    except asyncio.TimeoutError:
-        pass
-    except asyncio.CancelledError:
-        session.cancelled = True
-    finally:
-        session.finish()
+                await coro
+        except asyncio.TimeoutError:
+            pass
+        except asyncio.CancelledError:
+            session.cancelled = True
+        finally:
+            session.finish()
 
-
-class _NullContext:
-    def __enter__(self) -> _NullContext:
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        pass
+    if display is not None:
+        display.add_renditions(session.selected_renditions)
+        await display.run_until_complete(_work)
+    else:
+        await _work()
 
 
 async def _monitor_all_renditions(

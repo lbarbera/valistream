@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "valistream"
-version = "0.7.3"
+version = "0.8.0"
 description = "HLS stream validator — validates and monitors HLS playlists against RFC 8216 and Apple HLS authoring rules"
 readme = "README_WINDOWS.md"
 requires-python = ">=3.11"
@@ -24,6 +24,7 @@ dependencies = [
     "aiohttp>=3.9",
     "m3u8>=4.0",
     "rich>=13.0",
+    "textual>=0.60",
     "questionary>=2.0",
     "colorama>=0.4",
 ]

@@ -1,21 +1,25 @@
-"""rich-based live status panel for terminal output."""
+"""Live monitoring display state, rendered by a Textual app.
+
+:class:`LiveDisplay` holds the mutable session state (per-rendition status and
+the scanner animation) and exposes mutation methods that the monitor loop calls
+as data arrives. The actual rendering — including the scrollable ``Recent
+Errors`` panel — is done by :class:`~valistream.terminal.app.ValistreamApp`,
+which reads this state on its refresh timers.
+"""
 
 from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Awaitable, Callable, Iterable
 
-from rich.console import Console, ConsoleOptions, RenderResult
-from rich.live import Live
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
+from rich.console import Console
 
 from valistream.terminal.scanner import ScannerBar
 
 if TYPE_CHECKING:
     from valistream.parser.models import Rendition
+    from valistream.terminal.app import ValistreamApp
 
 
 class RenditionStatus:
@@ -43,30 +47,14 @@ class RenditionStatus:
         self.last_fetch = datetime.now()
 
 
-class _DynamicPanel:
-    """Dynamic renderable that rebuilds content on every Live refresh cycle."""
-
-    def __init__(self, display: LiveDisplay) -> None:
-        self._display = display
-
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        d = self._display
-        yield d._scanner.render()
-        yield d._build_table()
-        yield d._build_error_panel()
-
-
 class LiveDisplay:
-    """Live-updating status panel using rich.Live."""
-
-    _MAX_ERROR_LINES = 9
+    """Holds live monitoring state; rendered by a Textual app."""
 
     def __init__(self, console: Console, *, color: bool = True) -> None:
         self._console = console
         self._statuses: dict[str, RenditionStatus] = {}  # keyed by rendition URI
-        self._live: Live | None = None
         self._scanner = ScannerBar(color=color)
-        self._error_lines: list[str] = []
+        self._app: ValistreamApp | None = None
 
     def add_rendition(self, rendition: Rendition, *, label: str | None = None) -> RenditionStatus:
         display_label = label if label is not None else rendition.alias
@@ -96,61 +84,29 @@ class LiveDisplay:
         status = self._statuses.get(rendition_uri)
         label = status.label if status is not None else rendition_uri
         line = f"[dim]{ts}[/dim] [cyan]{label}[/cyan] {message}"
-        self._error_lines.append(line)
-        if len(self._error_lines) > self._MAX_ERROR_LINES:
-            self._error_lines.pop(0)
-
-    def _build_table(self) -> Table:
-        table = Table(title="Rendition Status", expand=True)
-        table.add_column("Rendition", style="cyan", no_wrap=True)
-        table.add_column("Refs", justify="right")
-        table.add_column("Last Seq", justify="right")
-        table.add_column("Findings", justify="right")
-        table.add_column("Last Fetch", no_wrap=True)
-
-        for status in self._statuses.values():
-            seq = str(status.last_sequence) if status.last_sequence is not None else "-"
-            fetch = status.last_fetch.strftime("%H:%M:%S") if status.last_fetch else "-"
-            findings_style = "red" if status.finding_count > 0 else "green"
-            table.add_row(
-                status.label,
-                str(status.refresh_count),
-                seq,
-                f"[{findings_style}]{status.finding_count}[/{findings_style}]",
-                fetch,
-            )
-        return table
-
-    def _build_error_panel(self) -> Panel:
-        lines = self._error_lines[-self._MAX_ERROR_LINES:]
-        # Pad to always occupy MAX_ERROR_LINES rows so the panel height stays stable
-        padded = lines + [""] * (self._MAX_ERROR_LINES - len(lines))
-        content = Text.from_markup("\n".join(padded))
-        return Panel(content, title="[red]Recent Errors[/red]", expand=True)
+        if self._app is not None:
+            self._app.write_error(line)
 
     def refresh(self) -> None:
-        """No-op: the Live auto-refresh reads fresh data on every cycle."""
+        """No-op: the Textual widgets refresh from state on their own timers."""
 
-    def start(self) -> None:
-        self._live = Live(
-            _DynamicPanel(self),
-            console=self._console,
-            refresh_per_second=12,
-            auto_refresh=True,
-        )
-        self._live.start()
+    def _attach(self, app: ValistreamApp) -> None:
+        """Called by the Textual app once its widgets are mounted."""
+        self._app = app
 
-    def stop(self) -> None:
-        if self._live is not None:
-            self._live.stop()
-            self._live = None
+    async def run_until_complete(self, work: Callable[[], Awaitable[None]]) -> None:
+        """Run the Textual dashboard, driving ``work`` as a background worker.
 
-    def __enter__(self) -> LiveDisplay:
-        self.start()
-        return self
+        The app exits when ``work`` completes (session ended, time limit hit, or
+        cancelled), returning control to the caller.
+        """
+        from valistream.terminal.app import ValistreamApp
 
-    def __exit__(self, *args: object) -> None:
-        self.stop()
+        app = ValistreamApp(self, work=work)
+        try:
+            await app.run_async()
+        finally:
+            self._app = None
 
 
 def create_live_display(console: Console | None = None, *, color: bool = True) -> LiveDisplay:
